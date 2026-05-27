@@ -1,0 +1,43 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="360" rx="24" fill="#FFFFFF"/>
+  <rect x="32" y="32" width="1136" height="296" rx="20" fill="#F8FAFC" stroke="#D8DEE8"/>
+  <text x="64" y="80" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#172033">Preparation workflow</text>
+  <g font-family="Arial, sans-serif">
+    <g>
+      <rect x="72" y="126" width="170" height="122" rx="14" fill="#FFFFFF" stroke="#87C5BD"/>
+      <text x="104" y="162" font-size="15" font-weight="700" fill="#0F766E">1. Collect</text>
+      <text x="104" y="190" font-size="12" fill="#627084">Passport, travel plan,</text>
+      <text x="104" y="209" font-size="12" fill="#627084">work/school records</text>
+    </g>
+    <g>
+      <rect x="292" y="126" width="170" height="122" rx="14" fill="#FFFFFF" stroke="#D8DEE8"/>
+      <text x="324" y="162" font-size="15" font-weight="700" fill="#172033">2. Extract</text>
+      <text x="324" y="190" font-size="12" fill="#627084">OpenAI, Codex, or</text>
+      <text x="324" y="209" font-size="12" fill="#627084">local text rules</text>
+    </g>
+    <g>
+      <rect x="512" y="126" width="170" height="122" rx="14" fill="#FFFFFF" stroke="#E7C277"/>
+      <text x="544" y="162" font-size="15" font-weight="700" fill="#B45309">3. Review</text>
+      <text x="544" y="190" font-size="12" fill="#627084">Accept candidates and</text>
+      <text x="544" y="209" font-size="12" fill="#627084">resolve conflicts</text>
+    </g>
+    <g>
+      <rect x="732" y="126" width="170" height="122" rx="14" fill="#FFFFFF" stroke="#D8DEE8"/>
+      <text x="764" y="162" font-size="15" font-weight="700" fill="#172033">4. Complete</text>
+      <text x="764" y="190" font-size="12" fill="#627084">Fill required fields</text>
+      <text x="764" y="209" font-size="12" fill="#627084">and run checks</text>
+    </g>
+    <g>
+      <rect x="952" y="126" width="170" height="122" rx="14" fill="#FFFFFF" stroke="#87C5BD"/>
+      <text x="984" y="162" font-size="15" font-weight="700" fill="#0F766E">5. Copy</text>
+      <text x="984" y="190" font-size="12" fill="#627084">Use review packet to</text>
+      <text x="984" y="209" font-size="12" fill="#627084">fill official DS-160</text>
+    </g>
+  </g>
+  <g stroke="#A9B4C4" stroke-width="3" stroke-linecap="round">
+    <path d="M248 187H286"/>
+    <path d="M468 187H506"/>
+    <path d="M688 187H726"/>
+    <path d="M908 187H946"/>
+  </g>
+</svg>

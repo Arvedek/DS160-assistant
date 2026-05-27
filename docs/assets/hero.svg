@@ -1,0 +1,43 @@
+<svg width="1200" height="520" viewBox="0 0 1200 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="520" rx="28" fill="#F6F7F9"/>
+  <rect x="48" y="48" width="1104" height="424" rx="22" fill="#FFFFFF" stroke="#D8DEE8"/>
+  <rect x="48" y="48" width="1104" height="74" rx="22" fill="#0F766E"/>
+  <text x="86" y="94" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#FFFFFF">DS160 Assistant</text>
+  <text x="934" y="92" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#D9FFFA">Local MVP</text>
+  <rect x="82" y="158" width="248" height="274" rx="14" fill="#F8FAFC" stroke="#D8DEE8"/>
+  <text x="108" y="194" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#172033">Product Cockpit</text>
+  <text x="108" y="236" font-family="Arial, sans-serif" font-size="52" font-weight="800" fill="#0F766E">86%</text>
+  <text x="108" y="266" font-family="Arial, sans-serif" font-size="14" fill="#627084">Readiness score</text>
+  <rect x="108" y="296" width="188" height="12" rx="6" fill="#E9EDF3"/>
+  <rect x="108" y="296" width="158" height="12" rx="6" fill="#0F766E"/>
+  <text x="108" y="345" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#172033">Next best action</text>
+  <text x="108" y="371" font-family="Arial, sans-serif" font-size="13" fill="#627084">Resolve review items before copying</text>
+  <text x="108" y="392" font-family="Arial, sans-serif" font-size="13" fill="#627084">answers into official DS-160.</text>
+  <rect x="370" y="158" width="378" height="274" rx="14" fill="#FFFFFF" stroke="#D8DEE8"/>
+  <text x="396" y="194" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#172033">Document Intake</text>
+  <rect x="396" y="222" width="136" height="76" rx="10" fill="#ECFDFB" stroke="#87C5BD"/>
+  <text x="421" y="253" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0B5F59">Passport</text>
+  <text x="421" y="276" font-family="Arial, sans-serif" font-size="12" fill="#627084">image / PDF</text>
+  <rect x="554" y="222" width="160" height="76" rx="10" fill="#F8FAFC" stroke="#D8DEE8"/>
+  <text x="579" y="253" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#172033">Invitation</text>
+  <text x="579" y="276" font-family="Arial, sans-serif" font-size="12" fill="#627084">letter / itinerary</text>
+  <rect x="396" y="324" width="318" height="70" rx="10" fill="#FFFBEB" stroke="#E7C277"/>
+  <text x="421" y="353" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#B45309">Candidate review</text>
+  <text x="421" y="376" font-family="Arial, sans-serif" font-size="12" fill="#627084">fill_empty · same_value · replace_conflict</text>
+  <rect x="790" y="158" width="326" height="274" rx="14" fill="#F8FAFC" stroke="#D8DEE8"/>
+  <text x="816" y="194" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#172033">Final Review Packet</text>
+  <g font-family="Arial, sans-serif" font-size="13" fill="#627084">
+    <text x="840" y="238">Missing required fields</text>
+    <text x="840" y="279">Risk and review items</text>
+    <text x="840" y="320">Source document checklist</text>
+    <text x="840" y="361">Applicant final checks</text>
+  </g>
+  <g fill="#0F766E">
+    <circle cx="822" cy="233" r="6"/>
+    <circle cx="822" cy="274" r="6"/>
+    <circle cx="822" cy="315" r="6"/>
+    <circle cx="822" cy="356" r="6"/>
+  </g>
+  <path d="M332 292H366" stroke="#A9B4C4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M750 292H784" stroke="#A9B4C4" stroke-width="3" stroke-linecap="round"/>
+</svg>

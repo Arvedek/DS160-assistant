@@ -1,36 +1,92 @@
 # DS160 Assistant
 
-[中文](#中文说明) | [English](#english)
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="DS160 Assistant product overview" width="100%" />
+</p>
+
+<p align="center">
+  <strong>Local-first, human-in-the-loop DS-160 drafting assistant.</strong><br />
+  Collect documents, extract candidate answers with AI/Codex/local rules, review conflicts, and prepare a final copy packet before manually completing the official form.
+</p>
+
+<p align="center">
+  <a href="#中文说明">中文</a> ·
+  <a href="#english">English</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#codex-handoff">Codex Handoff</a>
+</p>
+
+> **Important:** This is not an official U.S. government tool. It does not submit DS-160, sign for the applicant, bypass captchas, or make legal decisions. The applicant must personally review the official DS-160 before electronic signature and submission.
+
+## Product Preview
+
+<p align="center">
+  <img src="docs/assets/workflow.svg" alt="DS160 Assistant workflow" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/codex-handoff.svg" alt="Codex Handoff workflow" width="100%" />
+</p>
 
 ## 中文说明
 
-DS160 Assistant 是一个本地 MVP，用来在手动填写美国非移民签证
-DS-160 官方表格之前，先整理和检查申请草稿。
+DS160 Assistant 是一个本地运行的 DS-160 草稿准备工具。它把“收集资料、识别信息、人工复核、生成最终准备包”串成一个可控流程，帮助申请人在进入官方 DS-160 网站前先整理好答案。
 
-这个应用刻意设计为 human-in-the-loop。它可以帮助收集答案、检查必填项
-和常见一致性问题，并生成 Markdown/JSON 草稿。它不会提交表格、不会代替
-申请人电子签名、不会绕过验证码，也不会为申请人做法律判断。
+### 适合谁
 
-### 功能
+- 需要准备美国非移民签证 DS-160 的个人或顾问
+- 想把护照、邀请信、I-20/DS-2019、工作证明、旧签证记录等材料整理成结构化草稿的人
+- 没有 OpenAI API key，但愿意用当前 Codex 对话协助读图/读 PDF 的用户
+- 重视隐私、本地运行、人工确认的人
 
-- 浏览器本地录入资料
-- 必填项完成度追踪
-- Product Cockpit 工作台：显示 readiness score、当前阶段和下一步最佳动作
-- 标准化 dossier JSON 契约，包含 case ID、分区状态、字段映射、证据目录和安全边界
-- 本地校验日期、护照签发/过期逻辑、英文字符提醒、F/J/M 签证 SEVIS
-  提醒、petition-based worker 提醒、拒签史复核、安全问题复核
-- Security/background 分项复核，不再只依赖一段自由文本
-- 按 DS-160 主题分组的英文草稿
-- 复制 Markdown、下载 dossier JSON、本地保存报告
-- 浏览器端加密导出/导入，使用 Web Crypto AES-GCM 和 PBKDF2
-- 不记录完整个人信息的本地活动日志
-- 示例 B1/B2 dossier：`sample_data/china_b1b2_sample.json`
-- 文档输入面板支持图片、PDF、文本、JSON 上传；可粘贴 OCR/复制文本并抽取候选字段
-- 配置 `OPENAI_API_KEY` 后，图片/PDF 会通过 OpenAI Responses API 做视觉/文件分析；未配置时使用本地文本规则抽取
-- Codex Handoff 模式：没有 API key 时，可以生成分析包，复制到 Codex 对话，Codex 返回候选字段 JSON 后再导入本地审阅
-- 候选字段会标记填空、重复值或替换冲突；冲突项默认不自动勾选
-- Final Review Packet 汇总缺失必填项、风险复核项、材料清单和最终检查
-- MVP 不依赖云端 API
+### 核心能力
+
+- **Product Cockpit:** 显示 readiness score、当前阶段和下一步最佳动作
+- **Document Intake:** 支持图片、PDF、TXT、JSON 上传，也支持粘贴 OCR 或复制文本
+- **三种提取方式:** OpenAI API、Codex Handoff、本地文本规则
+- **候选字段审阅:** 标记 `fill_empty`、`same_value`、`replace_conflict`，冲突项默认不勾选
+- **Dossier JSON:** 生成标准化 case ID、分区状态、字段映射、证据目录和安全边界
+- **Final Review Packet:** 汇总缺失必填项、风险复核项、材料清单和最终检查
+- **隐私保护:** 本地运行；审计日志只记录计数和事件，不记录完整个人答案
+- **加密导出:** 浏览器端 Web Crypto AES-GCM + PBKDF2 加密 dossier
+
+### 工作流
+
+1. **收集材料:** 上传护照、邀请信、学校/雇主文件、旧签证记录，或粘贴 OCR 文本。
+2. **提取候选字段:** 使用 OpenAI API、Codex Handoff 或本地文本规则。
+3. **人工确认:** 逐项查看候选字段，确认冲突后再写入草稿。
+4. **完成草稿:** 补齐必填项，查看分区 readiness 和问题清单。
+5. **最终复核:** 导出 Final Review Packet，再手动进入官方 DS-160 网站填写。
+
+### Codex Handoff
+
+没有 OpenAI API key 时，推荐使用 Codex 模式：
+
+1. 在本地页面右侧 **Document Intake** 选择图片/PDF/TXT/JSON，或粘贴文字。
+2. 在 **Codex Mode** 点击 `1. Generate Codex package`。
+3. 点击 `2. Copy for Codex`。
+4. 在 Codex 对话里上传原始图片/PDF，并粘贴分析包。
+5. 让 Codex 只返回 `ds160-codex-candidates-v1` JSON。
+6. 把 JSON 粘贴回本地页面，点击 `Parse Codex result`。
+7. 勾选候选字段，确认后应用到表单。
+
+Codex 返回格式示例：
+
+```json
+{
+  "format": "ds160-codex-candidates-v1",
+  "candidates": [
+    {
+      "fieldId": "passport_number",
+      "value": "E12345678",
+      "confidence": 0.9,
+      "source": "passport image",
+      "requiresReview": true
+    }
+  ],
+  "notes": ["Applicant should verify against passport bio page."]
+}
+```
 
 ### 快速开始
 
@@ -46,103 +102,35 @@ python -m venv .venv
 http://127.0.0.1:8780
 ```
 
-保存的报告会写入：
-
-```text
-outputs/ds160/
-```
-
-如果要启用图片/PDF AI 分析：
+启用图片/PDF AI 分析：
 
 ```powershell
-$env:OPENAI_API_KEY="你的 key"
+$env:OPENAI_API_KEY="your key"
 $env:DS160_AI_MODEL="gpt-4o-mini"
 .\.venv\Scripts\python.exe -m ds160_agent.web --port 8780
 ```
 
-### Codex 模式流程
-
-没有 OpenAI API key 时，推荐用 Codex Handoff：
-
-1. 在右侧“文档输入”里选择图片/PDF/TXT/JSON，或粘贴 OCR/复制文本。
-2. 在“Codex 模式”点击 `1. 生成 Codex 分析包`。
-3. 点击 `2. 复制给 Codex`。
-4. 在 Codex 对话里上传原始图片/PDF，并粘贴分析包。
-5. 让 Codex 只返回 `ds160-codex-candidates-v1` JSON。
-6. 把 JSON 粘贴回 `3. 把 Codex 返回的候选字段 JSON 粘贴到这里`。
-7. 点击 `解析 Codex 结果`，再勾选候选字段并应用到表单。
-
-推荐给 Codex 的材料组合：
-
-- 护照照片或扫描件
-- I-20 / DS-2019 / petition receipt
-- 邀请信、行程单、酒店或联系人信息
-- 工作证明、在读证明、收入证明
-- 旧签证、拒签/行政处理说明、旅行记录文本
-
-### 开发
-
-运行测试：
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests\test_ds160_agent.py
-```
-
-项目结构：
-
-- `ds160_agent/core.py`：字段、校验、草稿生成、保存逻辑
-- `ds160_agent/dossier.py`：dossier 契约、字段映射、分区 readiness
-- `ds160_agent/audit.py`：隐私友好的本地审计日志
-- `ds160_agent/document_intake.py`：文档上传、AI 分析、本地文本候选字段抽取
-- `ds160_agent/web.py`：本地 HTTP 服务和 API
-- `ds160_agent/static/`：浏览器界面
-- `tests/test_ds160_agent.py`：核心校验测试
-- `tests/test_document_intake.py`：文档输入和文本抽取测试
-- `sample_data/china_b1b2_sample.json`：示例资料
-
-### 安全说明
-
-生成结果只能作为准备材料。申请人必须在官方 DS-160 网站上逐项检查所有答案，
-并亲自完成电子签名和提交。导出的文件包含敏感个人信息，请谨慎保存和分享。
-
 ## English
 
-DS160 Assistant is a local MVP for preparing a DS-160 draft before manually
-completing the official U.S. nonimmigrant visa application.
+DS160 Assistant is a local-first preparation tool for DS-160 drafts. It turns source documents into reviewable candidate answers, helps the applicant resolve conflicts, and produces a final copy packet before the applicant manually completes the official DS-160 form.
 
-The app is intentionally human-in-the-loop. It helps collect answers, checks
-required fields and common consistency issues, and generates Markdown/JSON
-drafts. It does not submit, sign, bypass captchas, or make legal decisions for
-the applicant.
+### Who It Is For
 
-### Features
+- Individuals preparing a U.S. nonimmigrant visa DS-160
+- Advisors who need a structured, auditable intake workflow
+- Users who want document extraction without giving the local app an API key
+- Privacy-conscious users who want local storage and human confirmation
 
-- Browser-based local data entry
-- Required-field completeness tracking
-- Product Cockpit with readiness score, current stage, and next best action
-- Standard dossier JSON contract with case ID, section readiness, field map,
-  evidence catalog, and safety boundaries
-- Local validation for dates, passport chronology, English-character warnings,
-  student/exchange visitor SEVIS reminders, petition-based worker reminders,
-  refusal-history review, and security-answer review
-- Structured security/background review fields instead of one free-text-only
-  note
-- English draft table grouped by DS-160 topic
-- Markdown copy, dossier JSON download, and local report save
-- Browser-side encrypted export/import using Web Crypto AES-GCM and PBKDF2
-- Privacy-conscious local activity log that avoids full personal answers
-- Sample B1/B2 dossier: `sample_data/china_b1b2_sample.json`
-- Document intake panel for image, PDF, text, and JSON uploads; pasted OCR or
-  copied text can be converted into candidate fields
-- With `OPENAI_API_KEY`, images/PDFs are analyzed through the OpenAI Responses
-  API; without it, local text heuristics still work
-- Codex Handoff mode: generate a package for this Codex chat, paste back the
-  candidate JSON, then review and apply fields locally
-- Candidate fields are labeled as fill-empty, duplicate, or replace-conflict;
-  conflicts are not selected by default
-- Final Review Packet with missing required fields, risk items, source
-  checklist, and final checks
-- No cloud API dependency in the MVP
+### Key Capabilities
+
+- **Product Cockpit:** Readiness score, current stage, and next best action
+- **Document Intake:** Upload images, PDFs, TXT, JSON, or paste OCR/copied text
+- **Three extraction paths:** OpenAI API, Codex Handoff, or local text heuristics
+- **Candidate review:** Labels fill-empty, same-value, and replace-conflict candidates
+- **Dossier JSON:** Case ID, section readiness, field map, evidence catalog, and safety boundaries
+- **Final Review Packet:** Missing fields, risk items, source checklist, and final checks
+- **Privacy-conscious audit log:** Counts and events only, no full applicant answers
+- **Encrypted export:** Browser-side Web Crypto AES-GCM + PBKDF2
 
 ### Quick Start
 
@@ -158,13 +146,7 @@ Open:
 http://127.0.0.1:8780
 ```
 
-Saved reports are written under:
-
-```text
-outputs/ds160/
-```
-
-To enable AI analysis for images/PDFs:
+Enable AI analysis for images/PDFs:
 
 ```powershell
 $env:OPENAI_API_KEY="your key"
@@ -172,42 +154,72 @@ $env:DS160_AI_MODEL="gpt-4o-mini"
 .\.venv\Scripts\python.exe -m ds160_agent.web --port 8780
 ```
 
-### Codex Handoff Flow
+### Codex Handoff
 
 When you do not have an OpenAI API key:
 
-1. In Document Intake, choose an image/PDF/TXT/JSON or paste OCR/copied text.
-2. In Codex Mode, click `1. Generate Codex package`.
+1. In **Document Intake**, choose an image/PDF/TXT/JSON or paste OCR text.
+2. In **Codex Mode**, click `1. Generate Codex package`.
 3. Click `2. Copy for Codex`.
 4. In the Codex chat, upload the original image/PDF and paste the package.
 5. Ask Codex to return only `ds160-codex-candidates-v1` JSON.
-6. Paste that JSON into the Codex result box.
-7. Click `Parse Codex result`, then review and apply selected candidates.
+6. Paste that JSON back into the Codex result box.
+7. Parse, review, and apply selected candidates locally.
 
-### Development
+## Architecture
+
+```text
+Browser UI
+  ├─ Manual DS-160 draft form
+  ├─ Document intake and candidate review
+  ├─ Codex handoff package generator
+  └─ Encrypted local export/import
+
+Local Python server
+  ├─ Field schema and validation
+  ├─ Dossier and review packet generation
+  ├─ Local text extraction
+  ├─ Optional OpenAI Responses API bridge
+  └─ Privacy-conscious audit log
+```
+
+## Project Layout
+
+```text
+ds160_agent/
+  core.py              Field schema, validation, draft, product guidance
+  dossier.py           Dossier contract, field map, section readiness
+  document_intake.py   Document upload, AI analysis, Codex handoff, local extraction
+  audit.py             Privacy-conscious local audit log
+  web.py               Local HTTP server and API
+  static/              Browser UI
+
+sample_data/
+  china_b1b2_sample.json
+
+tests/
+  test_ds160_agent.py
+  test_document_intake.py
+```
+
+## Development
 
 Run tests:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests\test_ds160_agent.py
+.\.venv\Scripts\python.exe -m pytest tests\test_ds160_agent.py tests\test_document_intake.py
 ```
 
-Project layout:
+Run compile checks:
 
-- `ds160_agent/core.py`: fields, validation, draft rendering, save logic
-- `ds160_agent/dossier.py`: dossier contract, field map, section readiness
-- `ds160_agent/audit.py`: privacy-conscious local audit log
-- `ds160_agent/document_intake.py`: document upload, AI analysis, local text
-  candidate extraction
-- `ds160_agent/web.py`: local HTTP server and API
-- `ds160_agent/static/`: browser UI
-- `tests/test_ds160_agent.py`: focused validation tests
-- `tests/test_document_intake.py`: document intake and text extraction tests
-- `sample_data/china_b1b2_sample.json`: sample data
+```powershell
+.\.venv\Scripts\python.exe -m compileall ds160_agent
+```
 
-### Safety Notes
+## Safety Boundaries
 
-Treat generated output as a preparation aid only. The applicant must personally
-review every answer on the official DS-160 website before electronic signature
-and submission. Store exported files carefully because DS-160 drafts contain
-sensitive personal information.
+- The app prepares a draft only.
+- Applicant must personally review all official DS-160 pages.
+- Applicant must personally sign and submit.
+- Security/background answers should not be inferred from silence.
+- Exported files contain sensitive personal information and should be stored carefully.

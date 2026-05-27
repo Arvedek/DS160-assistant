@@ -1,0 +1,25 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="420" rx="24" fill="#FFFFFF"/>
+  <rect x="32" y="32" width="1136" height="356" rx="20" fill="#F6F7F9" stroke="#D8DEE8"/>
+  <text x="64" y="82" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#172033">Codex Handoff mode</text>
+  <text x="64" y="112" font-family="Arial, sans-serif" font-size="14" fill="#627084">Use Codex as the AI reader when the local app has no OpenAI API key.</text>
+  <rect x="74" y="154" width="280" height="170" rx="16" fill="#FFFFFF" stroke="#D8DEE8"/>
+  <text x="104" y="196" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#172033">Local app</text>
+  <text x="104" y="228" font-family="Arial, sans-serif" font-size="13" fill="#627084">Upload documents or paste OCR text</text>
+  <text x="104" y="252" font-family="Arial, sans-serif" font-size="13" fill="#627084">Generate handoff package</text>
+  <text x="104" y="276" font-family="Arial, sans-serif" font-size="13" fill="#627084">Copy prompt and current draft context</text>
+  <rect x="460" y="154" width="280" height="170" rx="16" fill="#ECFDFB" stroke="#87C5BD"/>
+  <text x="490" y="196" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0B5F59">Codex chat</text>
+  <text x="490" y="228" font-family="Arial, sans-serif" font-size="13" fill="#627084">Attach original image/PDF</text>
+  <text x="490" y="252" font-family="Arial, sans-serif" font-size="13" fill="#627084">Extract only explicit facts</text>
+  <text x="490" y="276" font-family="Arial, sans-serif" font-size="13" fill="#627084">Return candidates JSON</text>
+  <rect x="846" y="154" width="280" height="170" rx="16" fill="#FFFFFF" stroke="#D8DEE8"/>
+  <text x="876" y="196" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#172033">Review locally</text>
+  <text x="876" y="228" font-family="Arial, sans-serif" font-size="13" fill="#627084">Paste JSON result</text>
+  <text x="876" y="252" font-family="Arial, sans-serif" font-size="13" fill="#627084">Resolve conflicts</text>
+  <text x="876" y="276" font-family="Arial, sans-serif" font-size="13" fill="#627084">Apply selected fields</text>
+  <path d="M362 238H450" stroke="#A9B4C4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M748 238H836" stroke="#A9B4C4" stroke-width="3" stroke-linecap="round"/>
+  <text x="376" y="218" font-family="Arial, sans-serif" font-size="12" fill="#627084">copy package</text>
+  <text x="766" y="218" font-family="Arial, sans-serif" font-size="12" fill="#627084">paste JSON</text>
+</svg>
