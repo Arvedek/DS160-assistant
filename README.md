@@ -15,6 +15,7 @@ DS-160 官方表格之前，先整理和检查申请草稿。
 
 - 浏览器本地录入资料
 - 必填项完成度追踪
+- Product Cockpit 工作台：显示 readiness score、当前阶段和下一步最佳动作
 - 标准化 dossier JSON 契约，包含 case ID、分区状态、字段映射、证据目录和安全边界
 - 本地校验日期、护照签发/过期逻辑、英文字符提醒、F/J/M 签证 SEVIS
   提醒、petition-based worker 提醒、拒签史复核、安全问题复核
@@ -27,6 +28,8 @@ DS-160 官方表格之前，先整理和检查申请草稿。
 - 文档输入面板支持图片、PDF、文本、JSON 上传；可粘贴 OCR/复制文本并抽取候选字段
 - 配置 `OPENAI_API_KEY` 后，图片/PDF 会通过 OpenAI Responses API 做视觉/文件分析；未配置时使用本地文本规则抽取
 - Codex Handoff 模式：没有 API key 时，可以生成分析包，复制到 Codex 对话，Codex 返回候选字段 JSON 后再导入本地审阅
+- 候选字段会标记填空、重复值或替换冲突；冲突项默认不自动勾选
+- Final Review Packet 汇总缺失必填项、风险复核项、材料清单和最终检查
 - MVP 不依赖云端 API
 
 ### 快速开始
@@ -116,6 +119,7 @@ the applicant.
 
 - Browser-based local data entry
 - Required-field completeness tracking
+- Product Cockpit with readiness score, current stage, and next best action
 - Standard dossier JSON contract with case ID, section readiness, field map,
   evidence catalog, and safety boundaries
 - Local validation for dates, passport chronology, English-character warnings,
@@ -134,6 +138,10 @@ the applicant.
   API; without it, local text heuristics still work
 - Codex Handoff mode: generate a package for this Codex chat, paste back the
   candidate JSON, then review and apply fields locally
+- Candidate fields are labeled as fill-empty, duplicate, or replace-conflict;
+  conflicts are not selected by default
+- Final Review Packet with missing required fields, risk items, source
+  checklist, and final checks
 - No cloud API dependency in the MVP
 
 ### Quick Start

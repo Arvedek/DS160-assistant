@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ds160_agent.document_intake import (
     ai_status,
+    annotate_candidates,
     analyze_document,
     build_codex_handoff,
     extract_candidates_from_text,
@@ -92,3 +93,13 @@ def test_parse_codex_result_normalizes_candidates() -> None:
     assert result["mode"] == "codex_result"
     assert result["candidates"][0]["fieldLabel"] == "Passport Number"
     assert result["notes"] == ["review passport number"]
+
+
+def test_candidate_annotation_marks_conflict() -> None:
+    candidates = [{"fieldId": "passport_number", "value": "E12345678", "confidence": 0.9}]
+
+    annotated = annotate_candidates(candidates, {"passport_number": "E87654321"})
+
+    assert annotated[0]["action"] == "replace_conflict"
+    assert annotated[0]["conflict"] is True
+    assert annotated[0]["requiresReview"] is True

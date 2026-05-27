@@ -29,6 +29,8 @@ const copyCodexButton = document.querySelector("#copy-codex-button");
 const parseCodexButton = document.querySelector("#parse-codex-button");
 const codexPackage = document.querySelector("#codex-package");
 const codexResult = document.querySelector("#codex-result");
+const guidancePanel = document.querySelector("#guidance-panel");
+const reviewPacket = document.querySelector("#review-packet");
 
 let schema = { sections: [], fields: [] };
 let latestAnalysis = null;
@@ -158,10 +160,52 @@ function renderAnalysis(data) {
   updateProgress(data.data || readFormData(), data.completeness);
   caseId.textContent = `Case ID: ${data.dossier?.caseId || "--"}`;
   markIssueFields(data.issues || []);
+  renderProductGuidance(data.productGuidance || {});
   renderSectionStatus(data.sectionStatus || []);
   renderIssues(data.issues || []);
   renderNextSteps(data.nextSteps || []);
   renderDraft(data.draft || []);
+  renderReviewPacket(data.reviewPacket || {});
+}
+
+function renderProductGuidance(guidance) {
+  if (!guidance.workflow) {
+    guidancePanel.innerHTML = '<div class="guidance-item"><strong>No guidance yet</strong></div>';
+    return;
+  }
+  guidancePanel.innerHTML = [
+    `<div class="guidance-item">
+      <strong>Readiness</strong>
+      <span class="readiness-score">${escapeHtml(guidance.readinessScore ?? 0)}%</span>
+      <span>Stage: ${escapeHtml(guidance.stage || "--")}</span>
+    </div>`,
+    `<div class="guidance-item"><strong>Next best action</strong><span>${escapeHtml(guidance.nextBestAction || "")}</span></div>`,
+    ...guidance.workflow.map((step) => `<div class="guidance-item">
+      <strong>${step.status === "done" ? "[done]" : "[open]"} ${escapeHtml(step.label)}</strong>
+      <span>${escapeHtml(step.detail)}</span>
+    </div>`),
+  ].join("");
+}
+
+function renderReviewPacket(packet) {
+  if (!packet.summary) {
+    reviewPacket.innerHTML = '<div class="packet-item"><strong>No review packet yet</strong></div>';
+    return;
+  }
+  const missing = packet.missingRequired || [];
+  const risks = packet.riskItems || [];
+  const sources = packet.sourceChecklist || [];
+  const checks = packet.finalChecks || [];
+  reviewPacket.innerHTML = [
+    `<div class="packet-item">
+      <strong>${packet.summary.readyForOfficialCopy ? "Ready for official copy review" : "Not ready yet"}</strong>
+      <span>${missing.length} missing required | ${risks.length} risk/review items</span>
+    </div>`,
+    ...missing.slice(0, 6).map((item) => `<div class="packet-item"><strong>Missing: ${escapeHtml(item.label)}</strong><span>${escapeHtml(item.section)}</span></div>`),
+    ...risks.slice(0, 6).map((item) => `<div class="packet-item"><strong>${escapeHtml(item.level)}: ${escapeHtml(item.label)}</strong><span>${escapeHtml(item.message)}</span></div>`),
+    `<div class="packet-item"><strong>Source documents</strong><span>${sources.map((item) => item.label).join(" | ")}</span></div>`,
+    `<div class="packet-item"><strong>Final checks</strong><span>${checks.join(" | ")}</span></div>`,
+  ].join("");
 }
 
 function renderSectionStatus(sections) {
@@ -407,6 +451,7 @@ async function parseCodexResult() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         caseId: latestAnalysis?.dossier?.caseId || "draft",
+        currentData: readFormData(),
         result: codexResult.value.trim(),
       }),
     });
@@ -461,11 +506,12 @@ function renderDocumentCandidates(data) {
   }
   documentCandidates.innerHTML = [
     ...notes.map((note) => `<div class="candidate"><strong>Note</strong><span>${escapeHtml(note)}</span></div>`),
-    ...candidates.map((candidate, index) => `<label class="candidate">
-      <input type="checkbox" data-candidate="${index}" checked />
+    ...candidates.map((candidate, index) => `<label class="candidate ${candidate.conflict ? "conflict" : ""}">
+      <input type="checkbox" data-candidate="${index}" ${candidate.conflict || candidate.action === "same_value" ? "" : "checked"} />
       <span>
         <strong>${escapeHtml(candidate.fieldLabel || candidate.fieldId)} -> ${escapeHtml(candidate.value)}</strong>
-        <span>${escapeHtml(candidate.source || data.mode)} | confidence ${Math.round(Number(candidate.confidence || 0) * 100)}%${candidate.requiresReview ? " | review" : ""}</span>
+        <span>${escapeHtml(candidate.source || data.mode)} | confidence ${Math.round(Number(candidate.confidence || 0) * 100)}% | ${escapeHtml(candidate.action || "fill_empty")}${candidate.requiresReview ? " | review" : ""}</span>
+        ${candidate.currentValue ? `<span>Current: ${escapeHtml(candidate.currentValue)}</span>` : ""}
       </span>
     </label>`),
     '<div class="candidate-actions"><button type="button" id="apply-candidates-button">应用选中字段</button></div>',

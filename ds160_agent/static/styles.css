@@ -311,7 +311,9 @@ button:disabled {
 .section-status,
 .audit-log,
 .candidate-list,
-.evidence-list {
+.evidence-list,
+.guidance-panel,
+.review-packet {
   display: grid;
   gap: 8px;
   margin-top: 12px;
@@ -321,7 +323,9 @@ button:disabled {
 .section-status-item,
 .audit-item,
 .candidate,
-.evidence-item {
+.evidence-item,
+.guidance-item,
+.packet-item {
   display: grid;
   gap: 4px;
   padding: 10px;
@@ -339,6 +343,11 @@ button:disabled {
   width: auto;
   min-height: 0;
   margin-top: 3px;
+}
+
+.candidate.conflict {
+  border-color: #e7c277;
+  background: #fff8db;
 }
 
 .candidate strong,
@@ -365,14 +374,23 @@ button:disabled {
 }
 
 .section-status-item strong,
-.audit-item strong {
+.audit-item strong,
+.guidance-item strong,
+.packet-item strong {
   font-size: 13px;
 }
 
 .section-status-item span,
-.audit-item span {
+.audit-item span,
+.guidance-item span,
+.packet-item span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.readiness-score {
+  font-size: 26px;
+  font-weight: 800;
 }
 
 .pill {

@@ -256,6 +256,8 @@ def analyze_application(payload: dict[str, Any]) -> dict[str, Any]:
         "dossier": dossier,
         "sectionStatus": dossier["sections"],
         "fieldMap": dossier["fieldMap"],
+        "productGuidance": build_product_guidance(data, issues, completeness, dossier["sections"]),
+        "reviewPacket": build_review_packet(data, issues),
         "markdown": render_markdown(data, draft, issues, completeness),
         "completeness": completeness,
         "nextSteps": next_steps(issues),
@@ -451,6 +453,112 @@ def next_steps(issues: list["Issue"]) -> list[str]:
         "Open the official DS-160 site manually and copy answers carefully.",
         "Applicant should do the final page-by-page review and electronic signature.",
     ]
+
+
+def build_product_guidance(
+    data: dict[str, str],
+    issues: list["Issue"],
+    completeness: dict[str, int],
+    sections: list[dict[str, Any]],
+) -> dict[str, Any]:
+    error_count = sum(1 for issue in issues if issue.level == "error")
+    warning_count = sum(1 for issue in issues if issue.level == "warning")
+    review_count = sum(1 for issue in issues if issue.level == "review")
+    score = max(0, completeness["percent"] - error_count * 4 - review_count * 2 - warning_count)
+    if error_count:
+        stage = "collect"
+        next_action = "Finish required fields before relying on generated drafts."
+    elif review_count or warning_count:
+        stage = "review"
+        next_action = "Resolve review items and compare answers against source documents."
+    elif completeness["percent"] < 100:
+        stage = "complete"
+        next_action = "Complete optional-but-important history fields and save a local report."
+    else:
+        stage = "export"
+        next_action = "Export the review packet and manually copy answers into the official DS-160."
+
+    return {
+        "readinessScore": score,
+        "stage": stage,
+        "nextBestAction": next_action,
+        "workflow": [
+            _workflow_step("collect", "Collect source docs", _has_core_identity(data), "Passport and basic identity are started."),
+            _workflow_step("extract", "Extract candidates", any(data.get(field.id) for field in FIELDS), "Use documents, Codex, or local text extraction."),
+            _workflow_step("complete", "Complete required fields", completeness["percent"] == 100, f"{completeness['requiredAnswered']} of {completeness['requiredTotal']} required answered."),
+            _workflow_step("review", "Resolve review items", error_count == 0 and review_count == 0 and warning_count == 0, f"{error_count} errors, {warning_count} warnings, {review_count} review items."),
+            _workflow_step("export", "Export and copy manually", error_count == 0 and completeness["percent"] == 100, "Applicant signs and submits only after official page review."),
+        ],
+        "sectionFocus": [
+            {
+                "sectionId": section["sectionId"],
+                "title": section["title"],
+                "status": section["status"],
+            }
+            for section in sections
+            if section["status"] != "ready"
+        ][:4],
+    }
+
+
+def build_review_packet(data: dict[str, str], issues: list["Issue"]) -> dict[str, Any]:
+    missing_required = [
+        {"fieldId": field.id, "label": field.label, "section": field.section}
+        for field in FIELDS
+        if field.required and not data.get(field.id)
+    ]
+    risk_items = [
+        {
+            "level": issue.level,
+            "fieldId": issue.field_id,
+            "label": FIELD_BY_ID.get(issue.field_id, Field(issue.field_id, issue.section, issue.field_id, "")).label,
+            "message": issue.message,
+        }
+        for issue in issues
+        if issue.level in {"warning", "review"}
+    ]
+    return {
+        "summary": {
+            "missingRequired": len(missing_required),
+            "riskItems": len(risk_items),
+            "readyForOfficialCopy": not missing_required and not any(issue.level == "error" for issue in issues),
+        },
+        "missingRequired": missing_required,
+        "riskItems": risk_items,
+        "sourceChecklist": source_document_checklist(data),
+        "finalChecks": [
+            "Applicant reviewed every answer against source documents.",
+            "All non-native-alphabet DS-160 answers use English characters.",
+            "Security/background answers were reviewed by the applicant personally.",
+            "Official DS-160 review pages were checked before electronic signature.",
+        ],
+    }
+
+
+def source_document_checklist(data: dict[str, str]) -> list[dict[str, str]]:
+    items = [
+        ("passport", "Passport bio page", "Needed for identity and passport fields."),
+        ("travel", "Travel itinerary or visit plan", "Needed for purpose, dates, stay address, and payer."),
+        ("contact", "U.S. contact or hotel details", "Needed for U.S. contact and address fields."),
+        ("work", "Employment or school proof", "Needed for occupation, employer/school, income, and duties."),
+        ("family", "Family names and spouse details", "Needed for family section."),
+        ("history", "Prior U.S. visa/travel/refusal records", "Needed for travel history accuracy."),
+        ("security", "Applicant security/background review", "Needed before final signature."),
+    ]
+    visa_class = data.get("visa_class", "").upper()
+    if any(code in visa_class for code in ("F", "J", "M")):
+        items.append(("sevis", "I-20/DS-2019 and SEVIS details", "Needed for student/exchange visitor cases."))
+    if any(code in visa_class for code in ("H", "L", "O", "P", "R", "CW")):
+        items.append(("petition", "Petition receipt or approval notice", "Needed for petition-based worker cases."))
+    return [{"id": item[0], "label": item[1], "why": item[2]} for item in items]
+
+
+def _workflow_step(step_id: str, label: str, done: bool, detail: str) -> dict[str, Any]:
+    return {"id": step_id, "label": label, "status": "done" if done else "open", "detail": detail}
+
+
+def _has_core_identity(data: dict[str, str]) -> bool:
+    return bool(data.get("surname") and data.get("given_names") and data.get("passport_number"))
 
 
 def save_analysis(analysis: dict[str, Any], output_root: Path | str = "outputs/ds160") -> dict[str, str]:

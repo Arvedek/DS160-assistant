@@ -36,7 +36,7 @@ def analyze_document(payload: dict[str, Any]) -> dict[str, Any]:
         ai_result["evidence"] = evidence
         return ai_result
 
-    candidates = extract_candidates_from_text(text)
+    candidates = annotate_candidates(extract_candidates_from_text(text), current_data)
     notes = []
     if data_b64 and not text:
         notes.append("File was attached as evidence, but no AI key is configured and no extractable text was provided.")
@@ -109,6 +109,7 @@ def build_codex_handoff(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def parse_codex_result(payload: dict[str, Any]) -> dict[str, Any]:
+    current_data = payload.get("currentData") if isinstance(payload.get("currentData"), dict) else {}
     raw = payload.get("result")
     if isinstance(raw, str):
         parsed = _parse_ai_json(raw)
@@ -118,7 +119,7 @@ def parse_codex_result(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Codex result must be a JSON object or JSON text.")
     if parsed.get("format") != CODEX_RESULT_FORMAT:
         raise ValueError(f"Codex result must include format={CODEX_RESULT_FORMAT}.")
-    candidates = _normalize_ai_candidates(parsed.get("candidates", []))
+    candidates = annotate_candidates(_normalize_ai_candidates(parsed.get("candidates", [])), current_data)
     notes = parsed.get("notes") if isinstance(parsed.get("notes"), list) else []
     return {
         "mode": "codex_result",
@@ -187,6 +188,29 @@ def extract_candidates_from_text(text: str) -> list[dict[str, Any]]:
         add("phone", phone_match.group(1), 0.68, "phone_pattern")
 
     return candidates
+
+
+def annotate_candidates(candidates: list[dict[str, Any]], current_data: dict[str, Any]) -> list[dict[str, Any]]:
+    annotated = []
+    for candidate in candidates:
+        field_id = str(candidate.get("fieldId") or "")
+        value = str(candidate.get("value") or "").strip()
+        existing = str(current_data.get(field_id) or "").strip()
+        action = "fill_empty"
+        conflict = False
+        if existing and _same_answer(existing, value):
+            action = "same_value"
+        elif existing and value:
+            action = "replace_conflict"
+            conflict = True
+        next_candidate = dict(candidate)
+        next_candidate["currentValue"] = existing
+        next_candidate["action"] = action
+        next_candidate["conflict"] = conflict
+        if conflict:
+            next_candidate["requiresReview"] = True
+        annotated.append(next_candidate)
+    return annotated
 
 
 FIELD_PATTERNS: dict[str, list[str]] = {
@@ -272,7 +296,7 @@ def _analyze_with_openai(document: dict[str, Any], current_data: dict[str, Any])
 
     output_text = _extract_response_text(raw)
     parsed = _parse_ai_json(output_text)
-    candidates = _normalize_ai_candidates(parsed.get("candidates", []))
+    candidates = annotate_candidates(_normalize_ai_candidates(parsed.get("candidates", [])), current_data)
     notes = parsed.get("notes") if isinstance(parsed.get("notes"), list) else []
     return {
         "mode": "ai",
@@ -378,6 +402,10 @@ def _normalize_text(text: str) -> str:
 
 def _clean_value(value: str) -> str:
     return re.sub(r"[ \t]+", " ", value.replace("\r", "").strip(" \t\n:：,，;；"))
+
+
+def _same_answer(left: str, right: str) -> bool:
+    return re.sub(r"\s+", " ", left).strip().casefold() == re.sub(r"\s+", " ", right).strip().casefold()
 
 
 def _normalize_date(value: str) -> str:

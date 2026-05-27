@@ -88,6 +88,8 @@ def test_analysis_includes_dossier_and_section_status() -> None:
     assert result["dossier"]["caseId"].startswith("ZHANG-WEI")
     assert result["sectionStatus"]
     assert all("status" in section for section in result["sectionStatus"])
+    assert result["productGuidance"]["readinessScore"] > 80
+    assert result["reviewPacket"]["summary"]["readyForOfficialCopy"] is True
 
 
 def test_security_yes_answer_requires_review() -> None:
@@ -97,3 +99,11 @@ def test_security_yes_answer_requires_review() -> None:
     issues = validate_application(payload)
 
     assert any(issue.field_id == "security_arrest_history" and issue.level == "review" for issue in issues)
+
+
+def test_missing_required_fields_show_in_review_packet() -> None:
+    result = analyze_application({"data": {"surname": "ZHANG"}})
+
+    assert result["productGuidance"]["stage"] == "collect"
+    assert result["reviewPacket"]["summary"]["missingRequired"] > 0
+    assert result["reviewPacket"]["summary"]["readyForOfficialCopy"] is False
