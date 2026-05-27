@@ -18,6 +18,8 @@ AI_KEY_ENV = "OPENAI_API_KEY"
 DEFAULT_MODEL = "gpt-4o-mini"
 MAX_TEXT_CHARS = 12000
 MAX_FILE_BYTES = 8 * 1024 * 1024
+CODEX_HANDOFF_FORMAT = "ds160-codex-handoff-v1"
+CODEX_RESULT_FORMAT = "ds160-codex-candidates-v1"
 
 
 def analyze_document(payload: dict[str, Any]) -> dict[str, Any]:
@@ -56,6 +58,75 @@ def ai_status() -> dict[str, Any]:
         "model": os.environ.get(AI_MODEL_ENV, DEFAULT_MODEL),
         "provider": "openai-responses",
         "supports": ["image", "pdf", "text"],
+    }
+
+
+def build_codex_handoff(payload: dict[str, Any]) -> dict[str, Any]:
+    document = payload.get("document") if isinstance(payload.get("document"), dict) else {}
+    current_data = payload.get("currentData") if isinstance(payload.get("currentData"), dict) else {}
+    text = str(document.get("text") or "").strip()
+    filename = str(document.get("filename") or "uploaded-document")
+    mime_type = str(document.get("mimeType") or "text/plain")
+    has_file = bool(document.get("dataBase64"))
+    non_empty = {field.id: current_data.get(field.id, "") for field in FIELDS if current_data.get(field.id)}
+    field_catalog = [{"fieldId": field.id, "label": field.label, "section": field.section} for field in FIELDS]
+    prompt = (
+        "You are helping extract DS-160 draft facts from user-provided materials. "
+        "Use only the attached files/images/PDFs and the text below. Do not invent facts. "
+        "Return JSON only in this exact shape:\n\n"
+        "{\n"
+        f'  "format": "{CODEX_RESULT_FORMAT}",\n'
+        '  "candidates": [\n'
+        '    {"fieldId": "passport_number", "value": "E12345678", "confidence": 0.86, "source": "passport image", "requiresReview": true}\n'
+        "  ],\n"
+        '  "notes": ["short note if needed"]\n'
+        "}\n\n"
+        "Allowed field IDs are listed in the handoff package. If a field is uncertain, include it only with low confidence and requiresReview=true. "
+        "For security/background questions, extract only explicit statements; do not infer a final answer."
+    )
+    handoff = {
+        "format": CODEX_HANDOFF_FORMAT,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "document": {
+            "filename": filename,
+            "mimeType": mime_type,
+            "hasAttachedFile": has_file,
+            "textPreview": text[:MAX_TEXT_CHARS],
+        },
+        "currentDraft": non_empty,
+        "fieldCatalog": field_catalog,
+        "instructions": prompt,
+    }
+    return {
+        "mode": "codex_handoff",
+        "handoff": handoff,
+        "prompt": prompt + "\n\nHANDOFF PACKAGE:\n" + json.dumps(handoff, ensure_ascii=False, indent=2),
+        "notes": [
+            "Attach the original image/PDF files directly in Codex when possible.",
+            "Paste the Codex JSON result back into the app to review and apply candidates.",
+        ],
+    }
+
+
+def parse_codex_result(payload: dict[str, Any]) -> dict[str, Any]:
+    raw = payload.get("result")
+    if isinstance(raw, str):
+        parsed = _parse_ai_json(raw)
+    elif isinstance(raw, dict):
+        parsed = raw
+    else:
+        raise ValueError("Codex result must be a JSON object or JSON text.")
+    if parsed.get("format") != CODEX_RESULT_FORMAT:
+        raise ValueError(f"Codex result must include format={CODEX_RESULT_FORMAT}.")
+    candidates = _normalize_ai_candidates(parsed.get("candidates", []))
+    notes = parsed.get("notes") if isinstance(parsed.get("notes"), list) else []
+    return {
+        "mode": "codex_result",
+        "model": "codex-handoff",
+        "evidence": _evidence_record("codex-handoff-result", "application/json", False, True),
+        "candidates": candidates,
+        "notes": notes,
+        "rawTextPreview": json.dumps(parsed, ensure_ascii=False)[:1200],
     }
 
 

@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from ds160_agent.document_intake import ai_status, analyze_document, extract_candidates_from_text
+from ds160_agent.document_intake import (
+    ai_status,
+    analyze_document,
+    build_codex_handoff,
+    extract_candidates_from_text,
+    parse_codex_result,
+)
 
 
 def test_extract_candidates_from_labeled_text() -> None:
@@ -48,3 +54,41 @@ def test_ai_status_reports_disabled(monkeypatch) -> None:
 
     assert status["enabled"] is False
     assert "image" in status["supports"]
+
+
+def test_codex_handoff_contains_prompt_and_field_catalog() -> None:
+    result = build_codex_handoff(
+        {
+            "currentData": {"surname": "ZHANG"},
+            "document": {"filename": "passport.jpg", "mimeType": "image/jpeg", "text": "Passport Number: E12345678"},
+        }
+    )
+
+    assert result["mode"] == "codex_handoff"
+    assert "HANDOFF PACKAGE" in result["prompt"]
+    assert result["handoff"]["currentDraft"]["surname"] == "ZHANG"
+    assert any(field["fieldId"] == "passport_number" for field in result["handoff"]["fieldCatalog"])
+
+
+def test_parse_codex_result_normalizes_candidates() -> None:
+    result = parse_codex_result(
+        {
+            "result": {
+                "format": "ds160-codex-candidates-v1",
+                "candidates": [
+                    {
+                        "fieldId": "passport_number",
+                        "value": "E12345678",
+                        "confidence": 0.9,
+                        "source": "passport image",
+                        "requiresReview": True,
+                    }
+                ],
+                "notes": ["review passport number"],
+            }
+        }
+    )
+
+    assert result["mode"] == "codex_result"
+    assert result["candidates"][0]["fieldLabel"] == "Passport Number"
+    assert result["notes"] == ["review passport number"]

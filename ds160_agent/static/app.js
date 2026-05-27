@@ -24,6 +24,11 @@ const documentCandidates = document.querySelector("#document-candidates");
 const evidenceList = document.querySelector("#evidence-list");
 const useAi = document.querySelector("#use-ai");
 const aiStatus = document.querySelector("#ai-status");
+const codexPackageButton = document.querySelector("#codex-package-button");
+const copyCodexButton = document.querySelector("#copy-codex-button");
+const parseCodexButton = document.querySelector("#parse-codex-button");
+const codexPackage = document.querySelector("#codex-package");
+const codexResult = document.querySelector("#codex-result");
 
 let schema = { sections: [], fields: [] };
 let latestAnalysis = null;
@@ -100,6 +105,9 @@ importButton.addEventListener("click", () => importFile.click());
 importFile.addEventListener("change", importJson);
 copyButton.addEventListener("click", copyMarkdown);
 documentAnalyzeButton.addEventListener("click", analyzeDocument);
+codexPackageButton.addEventListener("click", generateCodexPackage);
+copyCodexButton.addEventListener("click", copyCodexPackage);
+parseCodexButton.addEventListener("click", parseCodexResult);
 
 async function analyze(showDone) {
   setButtons(true);
@@ -356,6 +364,68 @@ async function analyzeDocument() {
   }
 }
 
+async function generateCodexPackage() {
+  setButtons(true);
+  try {
+    const filePayload = await readDocumentFile();
+    const response = await fetch("/api/codex/handoff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caseId: latestAnalysis?.dossier?.caseId || "draft",
+        currentData: readFormData(),
+        document: {
+          ...(filePayload || {}),
+          text: documentText.value.trim(),
+        },
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not generate Codex package");
+    codexPackage.value = data.prompt || "";
+    await loadAuditLog();
+    setStatus("Codex package", "ok");
+  } catch (error) {
+    setStatus("Codex error", "error");
+    codexPackage.value = error.message;
+  } finally {
+    setButtons(false);
+  }
+}
+
+async function copyCodexPackage() {
+  if (!codexPackage.value) await generateCodexPackage();
+  await navigator.clipboard.writeText(codexPackage.value);
+  setStatus("Copied Codex package", "ok");
+}
+
+async function parseCodexResult() {
+  setButtons(true);
+  try {
+    const response = await fetch("/api/codex/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caseId: latestAnalysis?.dossier?.caseId || "draft",
+        result: codexResult.value.trim(),
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not parse Codex result");
+    latestDocumentResult = data;
+    if (data.evidence) evidenceItems.unshift(data.evidence);
+    renderDocumentCandidates(data);
+    renderEvidence();
+    await loadAuditLog();
+    setStatus("Codex parsed", "ok");
+  } catch (error) {
+    setStatus("Parse error", "error");
+    documentCandidates.innerHTML = `<div class="candidate"><strong>Codex result error</strong><span>${escapeHtml(error.message)}</span></div>`;
+  } finally {
+    setButtons(false);
+  }
+}
+
 async function readDocumentFile() {
   const file = documentFile.files?.[0];
   if (!file) return null;
@@ -453,6 +523,9 @@ function setButtons(disabled) {
   importButton.disabled = disabled;
   copyButton.disabled = disabled;
   documentAnalyzeButton.disabled = disabled;
+  codexPackageButton.disabled = disabled;
+  copyCodexButton.disabled = disabled;
+  parseCodexButton.disabled = disabled;
   if (disabled) setStatus("Working", "running");
 }
 

@@ -26,6 +26,7 @@ DS-160 官方表格之前，先整理和检查申请草稿。
 - 示例 B1/B2 dossier：`sample_data/china_b1b2_sample.json`
 - 文档输入面板支持图片、PDF、文本、JSON 上传；可粘贴 OCR/复制文本并抽取候选字段
 - 配置 `OPENAI_API_KEY` 后，图片/PDF 会通过 OpenAI Responses API 做视觉/文件分析；未配置时使用本地文本规则抽取
+- Codex Handoff 模式：没有 API key 时，可以生成分析包，复制到 Codex 对话，Codex 返回候选字段 JSON 后再导入本地审阅
 - MVP 不依赖云端 API
 
 ### 快速开始
@@ -55,6 +56,26 @@ $env:OPENAI_API_KEY="你的 key"
 $env:DS160_AI_MODEL="gpt-4o-mini"
 .\.venv\Scripts\python.exe -m ds160_agent.web --port 8780
 ```
+
+### Codex 模式流程
+
+没有 OpenAI API key 时，推荐用 Codex Handoff：
+
+1. 在右侧“文档输入”里选择图片/PDF/TXT/JSON，或粘贴 OCR/复制文本。
+2. 在“Codex 模式”点击 `1. 生成 Codex 分析包`。
+3. 点击 `2. 复制给 Codex`。
+4. 在 Codex 对话里上传原始图片/PDF，并粘贴分析包。
+5. 让 Codex 只返回 `ds160-codex-candidates-v1` JSON。
+6. 把 JSON 粘贴回 `3. 把 Codex 返回的候选字段 JSON 粘贴到这里`。
+7. 点击 `解析 Codex 结果`，再勾选候选字段并应用到表单。
+
+推荐给 Codex 的材料组合：
+
+- 护照照片或扫描件
+- I-20 / DS-2019 / petition receipt
+- 邀请信、行程单、酒店或联系人信息
+- 工作证明、在读证明、收入证明
+- 旧签证、拒签/行政处理说明、旅行记录文本
 
 ### 开发
 
@@ -111,6 +132,8 @@ the applicant.
   copied text can be converted into candidate fields
 - With `OPENAI_API_KEY`, images/PDFs are analyzed through the OpenAI Responses
   API; without it, local text heuristics still work
+- Codex Handoff mode: generate a package for this Codex chat, paste back the
+  candidate JSON, then review and apply fields locally
 - No cloud API dependency in the MVP
 
 ### Quick Start
@@ -140,6 +163,18 @@ $env:OPENAI_API_KEY="your key"
 $env:DS160_AI_MODEL="gpt-4o-mini"
 .\.venv\Scripts\python.exe -m ds160_agent.web --port 8780
 ```
+
+### Codex Handoff Flow
+
+When you do not have an OpenAI API key:
+
+1. In Document Intake, choose an image/PDF/TXT/JSON or paste OCR/copied text.
+2. In Codex Mode, click `1. Generate Codex package`.
+3. Click `2. Copy for Codex`.
+4. In the Codex chat, upload the original image/PDF and paste the package.
+5. Ask Codex to return only `ds160-codex-candidates-v1` JSON.
+6. Paste that JSON into the Codex result box.
+7. Click `Parse Codex result`, then review and apply selected candidates.
 
 ### Development
 

@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 from .audit import log_event, read_recent_events
 from .core import analyze_application, save_analysis, schema_payload
 from .dossier import dossier_schema
-from .document_intake import ai_status, analyze_document
+from .document_intake import ai_status, analyze_document, build_codex_handoff, parse_codex_result
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -76,6 +76,12 @@ class DS160Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/document/analyze":
             self._handle_document_analyze()
             return
+        if parsed.path == "/api/codex/handoff":
+            self._handle_codex_handoff()
+            return
+        if parsed.path == "/api/codex/parse":
+            self._handle_codex_parse()
+            return
         self._send_error(HTTPStatus.NOT_FOUND, "Not found")
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -105,6 +111,43 @@ class DS160Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError) as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:  # noqa: BLE001 - local UI should surface unexpected failures
+            self._send_json({"error": f"Unexpected server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _handle_codex_handoff(self) -> None:
+        try:
+            payload = self._read_json_body()
+            result = build_codex_handoff(payload)
+            log_event(
+                OUTPUT_ROOT,
+                "codex_handoff",
+                {
+                    "caseId": payload.get("caseId") or "draft",
+                    "mimeType": result["handoff"]["document"]["mimeType"],
+                    "hasAttachedFile": result["handoff"]["document"]["hasAttachedFile"],
+                },
+            )
+            self._send_json(result)
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": f"Unexpected server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _handle_codex_parse(self) -> None:
+        try:
+            payload = self._read_json_body()
+            result = parse_codex_result(payload)
+            log_event(
+                OUTPUT_ROOT,
+                "codex_result_parse",
+                {
+                    "caseId": payload.get("caseId") or "draft",
+                    "candidateCount": len(result.get("candidates", [])),
+                },
+            )
+            self._send_json(result)
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as exc:  # noqa: BLE001
             self._send_json({"error": f"Unexpected server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def _handle_document_analyze(self) -> None:

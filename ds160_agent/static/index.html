@@ -62,6 +62,18 @@
         </section>
 
         <section>
+          <h2>Codex 模式</h2>
+          <div class="codex-mode">
+            <button type="button" id="codex-package-button">1. 生成 Codex 分析包</button>
+            <button type="button" id="copy-codex-button">2. 复制给 Codex</button>
+            <textarea id="codex-package" rows="7" readonly placeholder="生成后，把这里的内容连同图片/PDF材料一起发给 Codex"></textarea>
+            <textarea id="codex-result" rows="7" placeholder="3. 把 Codex 返回的候选字段 JSON 粘贴到这里"></textarea>
+            <button type="button" id="parse-codex-button">解析 Codex 结果</button>
+            <p class="field-help">推荐流程：先在上方选择/上传材料；如果是图片或 PDF，请在 Codex 对话里同时上传原文件，再粘贴分析包。</p>
+          </div>
+        </section>
+
+        <section>
           <h2>分区状态</h2>
           <div id="section-status" class="section-status"></div>
         </section>
