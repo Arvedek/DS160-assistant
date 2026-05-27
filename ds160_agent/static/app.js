@@ -31,10 +31,15 @@ const codexPackage = document.querySelector("#codex-package");
 const codexResult = document.querySelector("#codex-result");
 const guidancePanel = document.querySelector("#guidance-panel");
 const reviewPacket = document.querySelector("#review-packet");
+const refreshMaterialsButton = document.querySelector("#refresh-materials-button");
+const loadMaterialButton = document.querySelector("#load-material-button");
+const materialsSelect = document.querySelector("#materials-select");
+const materialsStatus = document.querySelector("#materials-status");
 
 let schema = { sections: [], fields: [] };
 let latestAnalysis = null;
 let latestDocumentResult = null;
+let selectedMaterial = null;
 const evidenceItems = [];
 const storageKey = "ds160LocalAssistant.data";
 
@@ -47,6 +52,7 @@ async function init() {
   renderForm();
   loadLocalDraft();
   await loadAiStatus();
+  await refreshMaterials();
   await analyze(false);
   setStatus("Ready", "ok");
 }
@@ -110,6 +116,8 @@ documentAnalyzeButton.addEventListener("click", analyzeDocument);
 codexPackageButton.addEventListener("click", generateCodexPackage);
 copyCodexButton.addEventListener("click", copyCodexPackage);
 parseCodexButton.addEventListener("click", parseCodexResult);
+refreshMaterialsButton.addEventListener("click", refreshMaterials);
+loadMaterialButton.addEventListener("click", loadSelectedMaterial);
 
 async function analyze(showDone) {
   setButtons(true);
@@ -376,7 +384,7 @@ async function analyzeDocument() {
   documentAnalyzeButton.disabled = true;
   documentCandidates.innerHTML = '<div class="candidate"><strong>Analyzing document</strong><span>Please wait.</span></div>';
   try {
-    const filePayload = await readDocumentFile();
+    const filePayload = selectedMaterial || (await readDocumentFile());
     const payload = {
       caseId: latestAnalysis?.dossier?.caseId || "draft",
       currentData: readFormData(),
@@ -411,7 +419,7 @@ async function analyzeDocument() {
 async function generateCodexPackage() {
   setButtons(true);
   try {
-    const filePayload = await readDocumentFile();
+    const filePayload = selectedMaterial || (await readDocumentFile());
     const response = await fetch("/api/codex/handoff", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -494,6 +502,59 @@ async function readDocumentFile() {
   };
 }
 
+async function refreshMaterials() {
+  try {
+    const response = await fetch("/api/materials");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not list materials");
+    const files = data.files || [];
+    materialsSelect.innerHTML = files.length
+      ? files.map((file) => `<option value="${escapeHtml(file.relativePath)}" ${file.tooLarge ? "disabled" : ""}>${escapeHtml(file.relativePath)} (${bytes(file.sizeBytes)})${file.tooLarge ? " - too large" : ""}</option>`).join("")
+      : '<option value="">No files in materials/</option>';
+    materialsStatus.textContent = files.length
+      ? `Found ${files.length} supported file(s) in materials/. Root: ${data.root}`
+      : `Put files under ${data.root}, then refresh.`;
+  } catch (error) {
+    materialsStatus.textContent = error.message;
+  }
+}
+
+async function loadSelectedMaterial() {
+  const relativePath = materialsSelect.value;
+  if (!relativePath) return;
+  setButtons(true);
+  try {
+    const response = await fetch("/api/materials/load", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caseId: latestAnalysis?.dossier?.caseId || "draft",
+        relativePath,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not load material");
+    selectedMaterial = data;
+    documentText.value = data.text || documentText.value;
+    documentFile.value = "";
+    evidenceItems.unshift({
+      filename: data.filename,
+      mimeType: data.mimeType,
+      hasFile: Boolean(data.dataBase64),
+      hasText: Boolean(data.text),
+    });
+    renderEvidence();
+    await loadAuditLog();
+    setStatus("Material loaded", "ok");
+    materialsStatus.textContent = `Loaded ${data.relativePath}. Analyze it or generate a Codex package.`;
+  } catch (error) {
+    setStatus("Material error", "error");
+    materialsStatus.textContent = error.message;
+  } finally {
+    setButtons(false);
+  }
+}
+
 function renderDocumentCandidates(data) {
   const candidates = data.candidates || [];
   const notes = data.notes || [];
@@ -572,6 +633,8 @@ function setButtons(disabled) {
   codexPackageButton.disabled = disabled;
   copyCodexButton.disabled = disabled;
   parseCodexButton.disabled = disabled;
+  refreshMaterialsButton.disabled = disabled;
+  loadMaterialButton.disabled = disabled;
   if (disabled) setStatus("Working", "running");
 }
 
@@ -662,6 +725,14 @@ function guessMimeType(filename) {
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
   if (lower.endsWith(".json")) return "application/json";
   return "text/plain";
+}
+
+function bytes(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "n/a";
+  if (number >= 1_000_000) return `${(number / 1_000_000).toFixed(2)} MB`;
+  if (number >= 1_000) return `${(number / 1_000).toFixed(1)} KB`;
+  return `${number} B`;
 }
 
 function setStatus(label, kind) {

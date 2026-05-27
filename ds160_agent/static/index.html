@@ -55,6 +55,14 @@
 
         <section>
           <h2>文档输入</h2>
+          <div class="folder-mode">
+            <button type="button" id="refresh-materials-button">刷新 materials 文件夹</button>
+            <select id="materials-select">
+              <option value="">No local materials loaded</option>
+            </select>
+            <button type="button" id="load-material-button">载入选中文件</button>
+            <p id="materials-status" class="field-help">把材料放进项目根目录的 materials/ 文件夹，然后刷新。</p>
+          </div>
           <div class="document-intake">
             <input type="file" id="document-file" accept="image/*,application/pdf,.txt,.json" />
             <textarea id="document-text" rows="5" placeholder="也可以粘贴 OCR 文本、邀请信、护照信息或 PDF 复制出来的文字"></textarea>

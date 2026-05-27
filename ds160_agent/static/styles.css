@@ -269,7 +269,8 @@ textarea {
 }
 
 .document-intake,
-.codex-mode {
+.codex-mode,
+.folder-mode {
   display: grid;
   gap: 10px;
   margin-top: 12px;

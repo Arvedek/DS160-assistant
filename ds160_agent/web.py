@@ -14,6 +14,7 @@ from .audit import log_event, read_recent_events
 from .core import analyze_application, save_analysis, schema_payload
 from .dossier import dossier_schema
 from .document_intake import ai_status, analyze_document, build_codex_handoff, parse_codex_result
+from .materials import list_materials, load_material
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -60,6 +61,9 @@ class DS160Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/ai-status":
             self._send_json(ai_status())
             return
+        if parsed.path == "/api/materials":
+            self._send_json(list_materials(WORKSPACE_ROOT))
+            return
         if parsed.path.startswith("/outputs/ds160/"):
             self._send_output_file(parsed.path.removeprefix("/outputs/ds160/"))
             return
@@ -81,6 +85,9 @@ class DS160Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/codex/parse":
             self._handle_codex_parse()
+            return
+        if parsed.path == "/api/materials/load":
+            self._handle_material_load()
             return
         self._send_error(HTTPStatus.NOT_FOUND, "Not found")
 
@@ -111,6 +118,27 @@ class DS160Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError) as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:  # noqa: BLE001 - local UI should surface unexpected failures
+            self._send_json({"error": f"Unexpected server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _handle_material_load(self) -> None:
+        try:
+            payload = self._read_json_body()
+            relative_path = str(payload.get("relativePath") or "")
+            material = load_material(WORKSPACE_ROOT, relative_path)
+            log_event(
+                OUTPUT_ROOT,
+                "material_load",
+                {
+                    "caseId": payload.get("caseId") or "draft",
+                    "relativePath": material["relativePath"],
+                    "mimeType": material["mimeType"],
+                    "sizeBytes": material["sizeBytes"],
+                },
+            )
+            self._send_json(material)
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as exc:  # noqa: BLE001
             self._send_json({"error": f"Unexpected server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def _handle_codex_handoff(self) -> None:
