@@ -27,6 +27,10 @@
           <strong>重要边界</strong>
           <p>这个工具只生成本地草稿。申请人必须亲自核对官方 DS-160，最后签名和提交不能交给 agent。</p>
         </div>
+        <div class="notice">
+          <strong>Dossier</strong>
+          <p id="case-id">Case ID: --</p>
+        </div>
       </aside>
 
       <section class="workspace">
@@ -38,8 +42,16 @@
           <button type="button" id="analyze-button">检查草稿</button>
           <button type="button" id="save-button">保存本地报告</button>
           <button type="button" id="download-button">下载 JSON</button>
+          <button type="button" id="encrypted-export-button">加密导出</button>
+          <button type="button" id="import-button">导入 JSON</button>
           <button type="button" id="copy-button">复制 Markdown</button>
         </div>
+        <input type="file" id="import-file" accept="application/json,.json" hidden />
+
+        <section>
+          <h2>分区状态</h2>
+          <div id="section-status" class="section-status"></div>
+        </section>
 
         <section>
           <h2>问题清单</h2>
@@ -59,6 +71,11 @@
         <section>
           <h2>保存结果</h2>
           <div id="saved-links" class="saved-links"></div>
+        </section>
+
+        <section>
+          <h2>活动记录</h2>
+          <div id="audit-log" class="audit-log"></div>
         </section>
       </aside>
     </main>

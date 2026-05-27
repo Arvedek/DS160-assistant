@@ -289,19 +289,63 @@ button:disabled {
   opacity: 0.65;
 }
 
-.issues {
+.issues,
+.section-status,
+.audit-log {
   display: grid;
   gap: 8px;
   margin-top: 12px;
 }
 
-.issue {
+.issue,
+.section-status-item,
+.audit-item {
   display: grid;
   gap: 4px;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #f8fafc;
+}
+
+.section-status-item {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.section-status-item strong,
+.audit-item strong {
+  font-size: 13px;
+}
+
+.section-status-item span,
+.audit-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pill {
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pill.ready {
+  color: var(--accent-strong);
+  background: #dcf7f3;
+}
+
+.pill.needs_review,
+.pill.warning {
+  color: var(--warning);
+  background: #fff1c2;
+}
+
+.pill.blocked {
+  color: var(--error);
+  background: #ffe0dc;
 }
 
 .issue.error {

@@ -15,10 +15,15 @@ DS-160 官方表格之前，先整理和检查申请草稿。
 
 - 浏览器本地录入资料
 - 必填项完成度追踪
+- 标准化 dossier JSON 契约，包含 case ID、分区状态、字段映射、证据目录和安全边界
 - 本地校验日期、护照签发/过期逻辑、英文字符提醒、F/J/M 签证 SEVIS
   提醒、petition-based worker 提醒、拒签史复核、安全问题复核
+- Security/background 分项复核，不再只依赖一段自由文本
 - 按 DS-160 主题分组的英文草稿
-- 复制 Markdown、下载 JSON、本地保存报告
+- 复制 Markdown、下载 dossier JSON、本地保存报告
+- 浏览器端加密导出/导入，使用 Web Crypto AES-GCM 和 PBKDF2
+- 不记录完整个人信息的本地活动日志
+- 示例 B1/B2 dossier：`sample_data/china_b1b2_sample.json`
 - MVP 不依赖云端 API
 
 ### 快速开始
@@ -52,9 +57,12 @@ outputs/ds160/
 项目结构：
 
 - `ds160_agent/core.py`：字段、校验、草稿生成、保存逻辑
+- `ds160_agent/dossier.py`：dossier 契约、字段映射、分区 readiness
+- `ds160_agent/audit.py`：隐私友好的本地审计日志
 - `ds160_agent/web.py`：本地 HTTP 服务和 API
 - `ds160_agent/static/`：浏览器界面
 - `tests/test_ds160_agent.py`：核心校验测试
+- `sample_data/china_b1b2_sample.json`：示例资料
 
 ### 安全说明
 
@@ -75,11 +83,18 @@ the applicant.
 
 - Browser-based local data entry
 - Required-field completeness tracking
+- Standard dossier JSON contract with case ID, section readiness, field map,
+  evidence catalog, and safety boundaries
 - Local validation for dates, passport chronology, English-character warnings,
   student/exchange visitor SEVIS reminders, petition-based worker reminders,
   refusal-history review, and security-answer review
+- Structured security/background review fields instead of one free-text-only
+  note
 - English draft table grouped by DS-160 topic
-- Markdown copy, JSON download, and local report save
+- Markdown copy, dossier JSON download, and local report save
+- Browser-side encrypted export/import using Web Crypto AES-GCM and PBKDF2
+- Privacy-conscious local activity log that avoids full personal answers
+- Sample B1/B2 dossier: `sample_data/china_b1b2_sample.json`
 - No cloud API dependency in the MVP
 
 ### Quick Start
@@ -113,9 +128,12 @@ Run tests:
 Project layout:
 
 - `ds160_agent/core.py`: fields, validation, draft rendering, save logic
+- `ds160_agent/dossier.py`: dossier contract, field map, section readiness
+- `ds160_agent/audit.py`: privacy-conscious local audit log
 - `ds160_agent/web.py`: local HTTP server and API
 - `ds160_agent/static/`: browser UI
 - `tests/test_ds160_agent.py`: focused validation tests
+- `sample_data/china_b1b2_sample.json`: sample data
 
 ### Safety Notes
 

@@ -4,6 +4,9 @@ const statusBadge = document.querySelector("#status");
 const analyzeButton = document.querySelector("#analyze-button");
 const saveButton = document.querySelector("#save-button");
 const downloadButton = document.querySelector("#download-button");
+const encryptedExportButton = document.querySelector("#encrypted-export-button");
+const importButton = document.querySelector("#import-button");
+const importFile = document.querySelector("#import-file");
 const copyButton = document.querySelector("#copy-button");
 const issuesBox = document.querySelector("#issues");
 const nextSteps = document.querySelector("#next-steps");
@@ -11,6 +14,9 @@ const draftBox = document.querySelector("#draft");
 const progressText = document.querySelector("#progress-text");
 const progressBar = document.querySelector("#progress-bar");
 const savedLinks = document.querySelector("#saved-links");
+const sectionStatusBox = document.querySelector("#section-status");
+const auditLog = document.querySelector("#audit-log");
+const caseId = document.querySelector("#case-id");
 
 let schema = { sections: [], fields: [] };
 let latestAnalysis = null;
@@ -79,6 +85,9 @@ function renderField(field) {
 analyzeButton.addEventListener("click", async () => analyze(true));
 saveButton.addEventListener("click", async () => saveReport());
 downloadButton.addEventListener("click", downloadJson);
+encryptedExportButton.addEventListener("click", encryptedExport);
+importButton.addEventListener("click", () => importFile.click());
+importFile.addEventListener("change", importJson);
 copyButton.addEventListener("click", copyMarkdown);
 
 async function analyze(showDone) {
@@ -93,6 +102,7 @@ async function analyze(showDone) {
     if (!response.ok) throw new Error(data.error || "Analysis failed");
     latestAnalysis = data;
     renderAnalysis(data);
+    await loadAuditLog();
     if (showDone) setStatus("Checked", "ok");
   } catch (error) {
     setStatus("Error", "error");
@@ -115,6 +125,7 @@ async function saveReport() {
     latestAnalysis = data;
     renderAnalysis(data);
     renderSavedLinks(data.saved);
+    await loadAuditLog();
     setStatus("Saved", "ok");
   } catch (error) {
     setStatus("Error", "error");
@@ -126,10 +137,28 @@ async function saveReport() {
 
 function renderAnalysis(data) {
   updateProgress(data.data || readFormData(), data.completeness);
+  caseId.textContent = `Case ID: ${data.dossier?.caseId || "--"}`;
   markIssueFields(data.issues || []);
+  renderSectionStatus(data.sectionStatus || []);
   renderIssues(data.issues || []);
   renderNextSteps(data.nextSteps || []);
   renderDraft(data.draft || []);
+}
+
+function renderSectionStatus(sections) {
+  if (!sections.length) {
+    sectionStatusBox.innerHTML = '<div class="section-status-item"><strong>No status yet</strong></div>';
+    return;
+  }
+  sectionStatusBox.innerHTML = sections
+    .map((section) => `<div class="section-status-item">
+      <div>
+        <strong>${escapeHtml(section.title)}</strong>
+        <span>${escapeHtml(section.requiredAnswered)} / ${escapeHtml(section.requiredTotal)} required | ${escapeHtml(section.errorCount)} errors | ${escapeHtml(section.reviewCount)} review</span>
+      </div>
+      <span class="pill ${escapeHtml(section.status)}">${escapeHtml(section.status)}</span>
+    </div>`)
+    .join("");
 }
 
 function renderIssues(issues) {
@@ -222,7 +251,7 @@ function loadLocalDraft() {
 }
 
 function downloadJson() {
-  const payload = latestAnalysis || { data: readFormData() };
+  const payload = latestAnalysis?.dossier || latestAnalysis || { data: readFormData() };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -230,6 +259,53 @@ function downloadJson() {
   link.download = "ds160-local-draft.json";
   link.click();
   URL.revokeObjectURL(url);
+}
+
+async function encryptedExport() {
+  if (!latestAnalysis?.dossier) await analyze(false);
+  const passphrase = window.prompt("Set an export passphrase. Keep it safe; it cannot be recovered.");
+  if (!passphrase) return;
+  const payload = JSON.stringify(latestAnalysis.dossier, null, 2);
+  const encrypted = await encryptText(payload, passphrase);
+  const blob = new Blob([JSON.stringify(encrypted, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "ds160-dossier-encrypted.json";
+  link.click();
+  URL.revokeObjectURL(url);
+  setStatus("Encrypted", "ok");
+}
+
+async function importJson() {
+  const file = importFile.files?.[0];
+  importFile.value = "";
+  if (!file) return;
+  setButtons(true);
+  try {
+    const text = await file.text();
+    let payload = JSON.parse(text);
+    if (payload?.format === "ds160-assistant-encrypted-v1") {
+      const passphrase = window.prompt("Enter the import passphrase.");
+      if (!passphrase) return;
+      payload = JSON.parse(await decryptText(payload, passphrase));
+    }
+    const data = payload?.data || payload?.dossier?.data || payload;
+    schema.fields.forEach((field) => {
+      const element = form.elements[field.id];
+      if (element && data[field.id] !== undefined && data[field.id] !== null) {
+        element.value = data[field.id];
+      }
+    });
+    saveLocalDraft();
+    await analyze(true);
+    setStatus("Imported", "ok");
+  } catch (error) {
+    setStatus("Import error", "error");
+    issuesBox.innerHTML = `<div class="issue error">${escapeHtml(error.message)}</div>`;
+  } finally {
+    setButtons(false);
+  }
 }
 
 async function copyMarkdown() {
@@ -243,8 +319,81 @@ function setButtons(disabled) {
   analyzeButton.disabled = disabled;
   saveButton.disabled = disabled;
   downloadButton.disabled = disabled;
+  encryptedExportButton.disabled = disabled;
+  importButton.disabled = disabled;
   copyButton.disabled = disabled;
   if (disabled) setStatus("Working", "running");
+}
+
+async function loadAuditLog() {
+  try {
+    const response = await fetch("/api/audit");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not load audit log");
+    const events = data.events || [];
+    if (!events.length) {
+      auditLog.innerHTML = '<div class="audit-item"><strong>No local activity yet</strong></div>';
+      return;
+    }
+    auditLog.innerHTML = events
+      .slice(0, 8)
+      .map((event) => `<div class="audit-item">
+        <strong>${escapeHtml(event.event)} | ${escapeHtml(event.caseId || "--")}</strong>
+        <span>${escapeHtml(event.ts || "")} | issues: ${escapeHtml(event.issueCount ?? "--")} | required: ${escapeHtml(event.requiredAnswered ?? "--")}/${escapeHtml(event.requiredTotal ?? "--")}</span>
+      </div>`)
+      .join("");
+  } catch {
+    auditLog.innerHTML = '<div class="audit-item"><strong>Audit log unavailable</strong></div>';
+  }
+}
+
+async function encryptText(text, passphrase) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(text));
+  return {
+    format: "ds160-assistant-encrypted-v1",
+    kdf: "PBKDF2-SHA256",
+    iterations: 250000,
+    salt: base64(salt),
+    iv: base64(iv),
+    ciphertext: base64(new Uint8Array(ciphertext)),
+  };
+}
+
+async function decryptText(payload, passphrase) {
+  const salt = fromBase64(payload.salt);
+  const iv = fromBase64(payload.iv);
+  const ciphertext = fromBase64(payload.ciphertext);
+  const key = await deriveKey(passphrase, salt, payload.iterations || 250000);
+  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  return new TextDecoder().decode(plaintext);
+}
+
+async function deriveKey(passphrase, salt, iterations = 250000) {
+  const material = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(passphrase),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+function base64(bytes) {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function fromBase64(value) {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
 }
 
 function setStatus(label, kind) {

@@ -36,6 +36,13 @@ def complete_payload() -> dict[str, str]:
         "employer_or_school": "Example Technology Ltd",
         "employer_or_school_address": "Shanghai, China",
         "job_duties": "Develop and maintain business software.",
+        "security_communicable_disease": "No",
+        "security_arrest_history": "No",
+        "security_drug_violation": "No",
+        "security_fraud_misrepresentation": "No",
+        "security_immigration_violation": "No",
+        "security_terrorism_related": "No",
+        "security_public_school_violation": "No",
         "security_answers_summary": "All No",
     }
 
@@ -72,3 +79,21 @@ def test_non_ascii_warning_excludes_native_name() -> None:
 
     assert any(issue.field_id == "given_names" for issue in issues)
     assert not any(issue.field_id == "native_name" for issue in issues)
+
+
+def test_analysis_includes_dossier_and_section_status() -> None:
+    result = analyze_application({"data": complete_payload()})
+
+    assert result["dossier"]["format"] == "ds160-assistant-dossier-v1"
+    assert result["dossier"]["caseId"].startswith("ZHANG-WEI")
+    assert result["sectionStatus"]
+    assert all("status" in section for section in result["sectionStatus"])
+
+
+def test_security_yes_answer_requires_review() -> None:
+    payload = complete_payload()
+    payload["security_arrest_history"] = "Yes"
+
+    issues = validate_application(payload)
+
+    assert any(issue.field_id == "security_arrest_history" and issue.level == "review" for issue in issues)

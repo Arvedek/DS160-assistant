@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from .audit import log_event, read_recent_events
 from .core import analyze_application, save_analysis, schema_payload
+from .dossier import dossier_schema
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -48,6 +50,12 @@ class DS160Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/schema":
             self._send_json(schema_payload())
             return
+        if parsed.path == "/api/dossier-schema":
+            self._send_json(dossier_schema())
+            return
+        if parsed.path == "/api/audit":
+            self._send_json({"events": read_recent_events(OUTPUT_ROOT)})
+            return
         if parsed.path.startswith("/outputs/ds160/"):
             self._send_output_file(parsed.path.removeprefix("/outputs/ds160/"))
             return
@@ -70,6 +78,16 @@ class DS160Handler(BaseHTTPRequestHandler):
         try:
             payload = self._read_json_body()
             analysis = analyze_application(payload)
+            log_event(
+                OUTPUT_ROOT,
+                "save" if save else "analyze",
+                {
+                    "caseId": analysis["dossier"]["caseId"],
+                    "requiredAnswered": analysis["completeness"]["requiredAnswered"],
+                    "requiredTotal": analysis["completeness"]["requiredTotal"],
+                    "issueCount": len(analysis["issues"]),
+                },
+            )
             if save:
                 paths = save_analysis(analysis, OUTPUT_ROOT)
                 analysis["saved"] = {

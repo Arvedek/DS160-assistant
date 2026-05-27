@@ -130,7 +130,70 @@ FIELDS: list[Field] = [
     Field("sevis_id", "visa_specific", "SEVIS ID", "For F, J, and M applicants; otherwise Does Not Apply.", False),
     Field("school_program_address", "visa_specific", "School/Program Address", "For F, J, and M applicants.", False),
     Field("petition_receipt", "visa_specific", "Petition Receipt", "For petition-based workers if applicable.", False),
-    Field("security_answers_summary", "security", "Security Answers Review", "List any security questions answered Yes, or write All No after review.", True, "textarea"),
+    Field(
+        "security_communicable_disease",
+        "security",
+        "Communicable Disease",
+        "Applicant-reviewed answer for communicable disease or public health grounds.",
+        True,
+        "select",
+        options=("No", "Yes", "Needs review"),
+    ),
+    Field(
+        "security_arrest_history",
+        "security",
+        "Arrest or Conviction History",
+        "Applicant-reviewed answer for any arrest, charge, conviction, or related issue.",
+        True,
+        "select",
+        options=("No", "Yes", "Needs review"),
+    ),
+    Field(
+        "security_drug_violation",
+        "security",
+        "Drug Violation",
+        "Applicant-reviewed answer for controlled substance or drug-related questions.",
+        True,
+        "select",
+        options=("No", "Yes", "Needs review"),
+    ),
+    Field(
+        "security_fraud_misrepresentation",
+        "security",
+        "Fraud or Misrepresentation",
+        "Applicant-reviewed answer for fraud, misrepresentation, or immigration document issues.",
+        True,
+        "select",
+        options=("No", "Yes", "Needs review"),
+    ),
+    Field(
+        "security_immigration_violation",
+        "security",
+        "Immigration Violation",
+        "Applicant-reviewed answer for overstay, removal, deportation, or visa violation questions.",
+        True,
+        "select",
+        options=("No", "Yes", "Needs review"),
+    ),
+    Field(
+        "security_terrorism_related",
+        "security",
+        "Security or Terrorism Related",
+        "Applicant-reviewed answer for terrorism, violence, genocide, or related security questions.",
+        True,
+        "select",
+        options=("No", "Yes", "Needs review"),
+    ),
+    Field(
+        "security_public_school_violation",
+        "security",
+        "Public School Violation",
+        "Applicant-reviewed answer for public school attendance and reimbursement questions.",
+        True,
+        "select",
+        options=("No", "Yes", "Needs review"),
+    ),
+    Field("security_answers_summary", "security", "Security Answers Notes", "List any Yes or uncertain security answers and source notes.", False, "textarea"),
     Field("preparer_notes", "security", "Preparer Notes", "Who prepared the draft and what still needs applicant review.", False, "textarea"),
 ]
 
@@ -139,6 +202,18 @@ REQUIRED_FIELD_IDS = {field.id for field in FIELDS if field.required}
 FIELD_BY_ID = {field.id: field for field in FIELDS}
 SECTION_BY_ID = {section["id"]: section for section in SECTIONS}
 DATE_FIELD_IDS = {field.id for field in FIELDS if field.input_type == "date"}
+
+SECURITY_BACKGROUND_FIELD_IDS = {
+    "security_communicable_disease",
+    "security_arrest_history",
+    "security_drug_violation",
+    "security_fraud_misrepresentation",
+    "security_immigration_violation",
+    "security_terrorism_related",
+    "security_public_school_violation",
+}
+
+SECURITY_OPTIONS = ("No", "Yes", "Needs review")
 
 
 def schema_payload() -> dict[str, Any]:
@@ -165,6 +240,9 @@ def analyze_application(payload: dict[str, Any]) -> dict[str, Any]:
     data = _clean_payload(payload)
     issues = validate_application(data)
     draft = build_draft(data)
+    from .dossier import build_dossier
+
+    dossier = build_dossier(data, issues)
     required_answered = sum(1 for field_id in REQUIRED_FIELD_IDS if data.get(field_id))
     completeness = {
         "requiredAnswered": required_answered,
@@ -175,6 +253,9 @@ def analyze_application(payload: dict[str, Any]) -> dict[str, Any]:
         "data": data,
         "issues": [issue.as_payload() for issue in issues],
         "draft": draft,
+        "dossier": dossier,
+        "sectionStatus": dossier["sections"],
+        "fieldMap": dossier["fieldMap"],
         "markdown": render_markdown(data, draft, issues, completeness),
         "completeness": completeness,
         "nextSteps": next_steps(issues),
@@ -187,6 +268,8 @@ def validate_application(data: dict[str, str]) -> list["Issue"]:
         value = data.get(field.id, "")
         if field.required and not value:
             issues.append(Issue("error", field.id, field.section, f"{field.label} is required."))
+        if value and field.options and value not in field.options:
+            issues.append(Issue("error", field.id, field.section, f"{field.label} must be one of: {', '.join(field.options)}."))
         if value and not field.allow_non_ascii and _has_non_ascii(value):
             issues.append(
                 Issue(
@@ -240,6 +323,19 @@ def validate_application(data: dict[str, str]) -> list["Issue"]:
             "Petition receipt details are usually needed for petition-based workers.",
         )
 
+    for field_id in SECURITY_BACKGROUND_FIELD_IDS:
+        answer = data.get(field_id, "")
+        if answer in {"Yes", "Needs review"}:
+            field = FIELD_BY_ID[field_id]
+            issues.append(
+                Issue(
+                    "review",
+                    field_id,
+                    "security",
+                    f"{field.label} is marked {answer}; applicant should review source facts carefully before signing.",
+                )
+            )
+
     security = data.get("security_answers_summary", "").lower()
     if security and security not in {"all no", "all no after review", "all no - reviewed"} and "yes" in security:
         issues.append(
@@ -292,8 +388,23 @@ def render_markdown(
         "",
         f"Required completeness: {completeness['requiredAnswered']} / {completeness['requiredTotal']} ({completeness['percent']}%).",
         "",
-        "## Review Issues",
+        "## Section Readiness",
     ]
+    from .dossier import build_section_status
+
+    for section in build_section_status(data, issues):
+        lines.append(
+            f"- {section['title']}: {section['status']} "
+            f"({section['requiredAnswered']}/{section['requiredTotal']} required, "
+            f"{section['errorCount']} errors, {section['warningCount']} warnings, {section['reviewCount']} review)"
+        )
+
+    lines.extend(
+        [
+            "",
+        "## Review Issues",
+        ]
+    )
     if issues:
         for issue in issues:
             field = FIELD_BY_ID.get(issue.field_id)
