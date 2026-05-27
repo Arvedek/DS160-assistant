@@ -1,0 +1,13 @@
+[project]
+name = "ds160-assistant"
+version = "0.1.0"
+description = "Local human-in-the-loop DS-160 drafting assistant."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ds160-agent-ui = "ds160_agent.web:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

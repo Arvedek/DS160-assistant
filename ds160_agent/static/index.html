@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DS-160 Local Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Local MVP</p>
+        <h1>DS-160 填写助理</h1>
+      </div>
+      <div class="status" id="status">Ready</div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <div class="progress">
+          <span>必填完成度</span>
+          <strong id="progress-text">0 / 0</strong>
+          <div class="progress-track"><div id="progress-bar"></div></div>
+        </div>
+        <nav id="section-nav"></nav>
+        <div class="notice">
+          <strong>重要边界</strong>
+          <p>这个工具只生成本地草稿。申请人必须亲自核对官方 DS-160，最后签名和提交不能交给 agent。</p>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <form id="ds160-form"></form>
+      </section>
+
+      <aside class="review">
+        <div class="actions">
+          <button type="button" id="analyze-button">检查草稿</button>
+          <button type="button" id="save-button">保存本地报告</button>
+          <button type="button" id="download-button">下载 JSON</button>
+          <button type="button" id="copy-button">复制 Markdown</button>
+        </div>
+
+        <section>
+          <h2>问题清单</h2>
+          <div id="issues" class="issues"></div>
+        </section>
+
+        <section>
+          <h2>下一步</h2>
+          <ul id="next-steps"></ul>
+        </section>
+
+        <section>
+          <h2>英文草稿</h2>
+          <div id="draft" class="draft"></div>
+        </section>
+
+        <section>
+          <h2>保存结果</h2>
+          <div id="saved-links" class="saved-links"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
