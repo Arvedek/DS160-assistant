@@ -13,8 +13,8 @@ from urllib.parse import urlparse
 from .audit import log_event, read_recent_events
 from .core import analyze_application, save_analysis, schema_payload
 from .dossier import dossier_schema
-from .document_intake import ai_status, analyze_document, build_codex_handoff, parse_codex_result
-from .materials import list_materials, load_material
+from .document_intake import ai_status, analyze_document, build_codex_handoff, build_codex_materials_handoff, parse_codex_result
+from .materials import build_materials_review_bundle, list_materials, load_material
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -82,6 +82,9 @@ class DS160Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/codex/handoff":
             self._handle_codex_handoff()
+            return
+        if parsed.path == "/api/codex/materials-handoff":
+            self._handle_codex_materials_handoff()
             return
         if parsed.path == "/api/codex/parse":
             self._handle_codex_parse()
@@ -152,6 +155,26 @@ class DS160Handler(BaseHTTPRequestHandler):
                     "caseId": payload.get("caseId") or "draft",
                     "mimeType": result["handoff"]["document"]["mimeType"],
                     "hasAttachedFile": result["handoff"]["document"]["hasAttachedFile"],
+                },
+            )
+            self._send_json(result)
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": f"Unexpected server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _handle_codex_materials_handoff(self) -> None:
+        try:
+            payload = self._read_json_body()
+            materials_bundle = build_materials_review_bundle(WORKSPACE_ROOT)
+            result = build_codex_materials_handoff(payload, materials_bundle)
+            log_event(
+                OUTPUT_ROOT,
+                "codex_materials_handoff",
+                {
+                    "caseId": payload.get("caseId") or "draft",
+                    "materialCount": materials_bundle["counts"]["included"],
+                    "skippedCount": materials_bundle["counts"]["skipped"],
                 },
             )
             self._send_json(result)

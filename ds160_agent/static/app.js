@@ -25,6 +25,7 @@ const evidenceList = document.querySelector("#evidence-list");
 const useAi = document.querySelector("#use-ai");
 const aiStatus = document.querySelector("#ai-status");
 const codexPackageButton = document.querySelector("#codex-package-button");
+const codexMaterialsPackageButton = document.querySelector("#codex-materials-package-button");
 const copyCodexButton = document.querySelector("#copy-codex-button");
 const parseCodexButton = document.querySelector("#parse-codex-button");
 const codexPackage = document.querySelector("#codex-package");
@@ -114,6 +115,7 @@ importFile.addEventListener("change", importJson);
 copyButton.addEventListener("click", copyMarkdown);
 documentAnalyzeButton.addEventListener("click", analyzeDocument);
 codexPackageButton.addEventListener("click", generateCodexPackage);
+codexMaterialsPackageButton.addEventListener("click", generateCodexMaterialsPackage);
 copyCodexButton.addEventListener("click", copyCodexPackage);
 parseCodexButton.addEventListener("click", parseCodexResult);
 refreshMaterialsButton.addEventListener("click", refreshMaterials);
@@ -445,6 +447,30 @@ async function generateCodexPackage() {
   }
 }
 
+async function generateCodexMaterialsPackage() {
+  setButtons(true);
+  try {
+    const response = await fetch("/api/codex/materials-handoff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caseId: latestAnalysis?.dossier?.caseId || "draft",
+        currentData: readFormData(),
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not generate materials review package");
+    codexPackage.value = data.prompt || "";
+    await loadAuditLog();
+    setStatus("Materials package", "ok");
+  } catch (error) {
+    setStatus("Codex error", "error");
+    codexPackage.value = error.message;
+  } finally {
+    setButtons(false);
+  }
+}
+
 async function copyCodexPackage() {
   if (!codexPackage.value) await generateCodexPackage();
   await navigator.clipboard.writeText(codexPackage.value);
@@ -631,6 +657,7 @@ function setButtons(disabled) {
   copyButton.disabled = disabled;
   documentAnalyzeButton.disabled = disabled;
   codexPackageButton.disabled = disabled;
+  codexMaterialsPackageButton.disabled = disabled;
   copyCodexButton.disabled = disabled;
   parseCodexButton.disabled = disabled;
   refreshMaterialsButton.disabled = disabled;

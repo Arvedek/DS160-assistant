@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any
 
 MAX_MATERIAL_BYTES = 8 * 1024 * 1024
+MAX_MATERIALS_FOR_REVIEW = 20
+MAX_TEXT_PREVIEW_CHARS = 4000
+MAX_TOTAL_TEXT_PREVIEW_CHARS = 16000
 TEXT_SUFFIXES = {".txt", ".md", ".csv", ".json", ".log"}
 ALLOWED_SUFFIXES = {
     ".pdf",
@@ -80,6 +83,49 @@ def load_material(workspace_root: Path, relative_path: str) -> dict[str, Any]:
         "sizeBytes": len(raw),
         "dataBase64": base64.b64encode(raw).decode("ascii"),
         "text": text,
+    }
+
+
+def build_materials_review_bundle(workspace_root: Path) -> dict[str, Any]:
+    root = ensure_materials_dir(workspace_root).resolve()
+    listing = list_materials(workspace_root)
+    included = []
+    skipped = []
+    text_budget = MAX_TOTAL_TEXT_PREVIEW_CHARS
+
+    for item in listing["files"][:MAX_MATERIALS_FOR_REVIEW]:
+        if item["tooLarge"]:
+            skipped.append({**item, "reason": "too_large"})
+            continue
+        record = {
+            "relativePath": item["relativePath"],
+            "filename": item["name"],
+            "mimeType": item["mimeType"],
+            "sizeBytes": item["sizeBytes"],
+            "isText": item["isText"],
+            "textPreview": "",
+            "needsAttachmentOrWorkspaceRead": not item["isText"],
+        }
+        if item["isText"] and text_budget > 0:
+            material = load_material(workspace_root, item["relativePath"])
+            preview = material["text"][: min(MAX_TEXT_PREVIEW_CHARS, text_budget)]
+            record["textPreview"] = preview
+            text_budget -= len(preview)
+        included.append(record)
+
+    for item in listing["files"][MAX_MATERIALS_FOR_REVIEW:]:
+        skipped.append({**item, "reason": "review_file_limit"})
+
+    return {
+        "root": str(root),
+        "maxFileBytes": MAX_MATERIAL_BYTES,
+        "included": included,
+        "skipped": skipped,
+        "counts": {
+            "listed": len(listing["files"]),
+            "included": len(included),
+            "skipped": len(skipped),
+        },
     }
 
 

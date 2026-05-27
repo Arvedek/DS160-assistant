@@ -19,6 +19,7 @@ DEFAULT_MODEL = "gpt-4o-mini"
 MAX_TEXT_CHARS = 12000
 MAX_FILE_BYTES = 8 * 1024 * 1024
 CODEX_HANDOFF_FORMAT = "ds160-codex-handoff-v1"
+CODEX_MATERIALS_HANDOFF_FORMAT = "ds160-codex-materials-handoff-v1"
 CODEX_RESULT_FORMAT = "ds160-codex-candidates-v1"
 
 
@@ -104,6 +105,47 @@ def build_codex_handoff(payload: dict[str, Any]) -> dict[str, Any]:
         "notes": [
             "Attach the original image/PDF files directly in Codex when possible.",
             "Paste the Codex JSON result back into the app to review and apply candidates.",
+        ],
+    }
+
+
+def build_codex_materials_handoff(payload: dict[str, Any], materials_bundle: dict[str, Any]) -> dict[str, Any]:
+    current_data = payload.get("currentData") if isinstance(payload.get("currentData"), dict) else {}
+    non_empty = {field.id: current_data.get(field.id, "") for field in FIELDS if current_data.get(field.id)}
+    field_catalog = [{"fieldId": field.id, "label": field.label, "section": field.section} for field in FIELDS]
+    prompt = (
+        "You are acting as the extraction and evaluation agent for a local DS-160 assistant. "
+        "Review the full materials folder as one applicant case. Use only facts found in the listed materials and current draft. "
+        "If you are running in the same Codex workspace, read files from the provided materialsRoot path directly. "
+        "If a file cannot be read in your environment, ask the user to attach it instead of guessing. "
+        "Evaluate conflicts across documents, missing critical fields, and source quality. "
+        "Return JSON only in this exact shape:\n\n"
+        "{\n"
+        f'  "format": "{CODEX_RESULT_FORMAT}",\n'
+        '  "candidates": [\n'
+        '    {"fieldId": "passport_number", "value": "E12345678", "confidence": 0.9, "source": "materials/passport.jpg", "requiresReview": true}\n'
+        "  ],\n"
+        '  "notes": ["conflict or missing source note"]\n'
+        "}\n\n"
+        "Do not invent answers. For security/background questions, only extract explicit statements and keep requiresReview=true. "
+        "Prefer source labels that include the material relative path."
+    )
+    handoff = {
+        "format": CODEX_MATERIALS_HANDOFF_FORMAT,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "materialsRoot": materials_bundle["root"],
+        "materials": materials_bundle,
+        "currentDraft": non_empty,
+        "fieldCatalog": field_catalog,
+        "instructions": prompt,
+    }
+    return {
+        "mode": "codex_materials_handoff",
+        "handoff": handoff,
+        "prompt": prompt + "\n\nMATERIALS HANDOFF PACKAGE:\n" + json.dumps(handoff, ensure_ascii=False, indent=2),
+        "notes": [
+            "This package is optimized for reviewing every supported file in materials/ together.",
+            "Text files include previews; image and PDF files should be read from the local workspace or attached in Codex.",
         ],
     }
 
