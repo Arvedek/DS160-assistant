@@ -36,6 +36,7 @@ const refreshMaterialsButton = document.querySelector("#refresh-materials-button
 const loadMaterialButton = document.querySelector("#load-material-button");
 const materialsSelect = document.querySelector("#materials-select");
 const materialsStatus = document.querySelector("#materials-status");
+const materialsTable = document.querySelector("#materials-table");
 
 let schema = { sections: [], fields: [] };
 let latestAnalysis = null;
@@ -540,8 +541,10 @@ async function refreshMaterials() {
     materialsStatus.textContent = files.length
       ? `Found ${files.length} supported file(s) in materials/. Root: ${data.root}`
       : `Put files under ${data.root}, then refresh.`;
+    renderMaterialsTable(files);
   } catch (error) {
     materialsStatus.textContent = error.message;
+    renderMaterialsTable([]);
   }
 }
 
@@ -584,6 +587,7 @@ async function loadSelectedMaterial() {
 function renderDocumentCandidates(data) {
   const candidates = data.candidates || [];
   const notes = data.notes || [];
+  const quality = summarizeCandidateQuality(candidates);
   if (!candidates.length) {
     documentCandidates.innerHTML = `<div class="candidate">
       <strong>No candidates found</strong>
@@ -592,18 +596,64 @@ function renderDocumentCandidates(data) {
     return;
   }
   documentCandidates.innerHTML = [
+    `<div class="candidate-quality">
+      <div><strong>${quality.ready}</strong><span>ready</span></div>
+      <div><strong>${quality.checkSource}</strong><span>check source</span></div>
+      <div><strong>${quality.needsReview}</strong><span>needs review</span></div>
+      <div><strong>${quality.alreadyConfirmed}</strong><span>confirmed</span></div>
+    </div>`,
     ...notes.map((note) => `<div class="candidate"><strong>Note</strong><span>${escapeHtml(note)}</span></div>`),
     ...candidates.map((candidate, index) => `<label class="candidate ${candidate.conflict ? "conflict" : ""}">
       <input type="checkbox" data-candidate="${index}" ${candidate.conflict || candidate.action === "same_value" ? "" : "checked"} />
       <span>
         <strong>${escapeHtml(candidate.fieldLabel || candidate.fieldId)} -> ${escapeHtml(candidate.value)}</strong>
         <span>${escapeHtml(candidate.source || data.mode)} | confidence ${Math.round(Number(candidate.confidence || 0) * 100)}% | ${escapeHtml(candidate.action || "fill_empty")}${candidate.requiresReview ? " | review" : ""}</span>
+        ${candidate.quality ? `<span class="quality-line">${escapeHtml(candidate.quality.tier)} | score ${escapeHtml(candidate.quality.score)} | ${escapeHtml(candidate.quality.recommendation)}</span>` : ""}
+        ${candidate.quality?.reasons?.length ? `<span>${candidate.quality.reasons.map(escapeHtml).join(" | ")}</span>` : ""}
         ${candidate.currentValue ? `<span>Current: ${escapeHtml(candidate.currentValue)}</span>` : ""}
       </span>
     </label>`),
     '<div class="candidate-actions"><button type="button" id="apply-candidates-button">应用选中字段</button></div>',
   ].join("");
   document.querySelector("#apply-candidates-button").addEventListener("click", applyCandidates);
+}
+
+function renderMaterialsTable(files) {
+  if (!files.length) {
+    materialsTable.innerHTML = '<div class="material-row empty"><strong>No supported materials yet</strong><span>Add files to materials/ and refresh.</span></div>';
+    return;
+  }
+  materialsTable.innerHTML = [
+    `<div class="material-summary">
+      <strong>${files.length} material(s)</strong>
+      <span>${files.filter((file) => file.isText).length} text-readable | ${files.filter((file) => !file.isText).length} image/PDF/file | ${files.filter((file) => file.tooLarge).length} too large</span>
+    </div>`,
+    ...files.map((file) => {
+      const status = file.tooLarge ? "too large" : file.isText ? "text preview included" : "workspace read or attach";
+      const statusClass = file.tooLarge ? "blocked" : file.isText ? "ready" : "review";
+      return `<div class="material-row">
+        <div>
+          <strong>${escapeHtml(file.relativePath)}</strong>
+          <span>${escapeHtml(file.mimeType)} | ${bytes(file.sizeBytes)}</span>
+        </div>
+        <span class="pill ${statusClass}">${escapeHtml(status)}</span>
+      </div>`;
+    }),
+  ].join("");
+}
+
+function summarizeCandidateQuality(candidates) {
+  return candidates.reduce(
+    (summary, candidate) => {
+      const tier = candidate.quality?.tier || "check_source";
+      if (tier === "ready") summary.ready += 1;
+      else if (tier === "needs_review") summary.needsReview += 1;
+      else if (tier === "already_confirmed") summary.alreadyConfirmed += 1;
+      else summary.checkSource += 1;
+      return summary;
+    },
+    { ready: 0, checkSource: 0, needsReview: 0, alreadyConfirmed: 0 },
+  );
 }
 
 async function applyCandidates() {

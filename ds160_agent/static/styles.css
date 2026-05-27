@@ -313,6 +313,7 @@ button:disabled {
 .audit-log,
 .candidate-list,
 .evidence-list,
+.materials-table,
 .guidance-panel,
 .review-packet {
   display: grid;
@@ -325,6 +326,8 @@ button:disabled {
 .audit-item,
 .candidate,
 .evidence-item,
+.material-row,
+.material-summary,
 .guidance-item,
 .packet-item {
   display: grid;
@@ -349,6 +352,41 @@ button:disabled {
 .candidate.conflict {
   border-color: #e7c277;
   background: #fff8db;
+}
+
+.candidate-quality {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.candidate-quality div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.candidate-quality strong {
+  display: block;
+  font-size: 18px;
+}
+
+.candidate-quality span,
+.quality-line {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.material-row,
+.material-summary {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.material-row.empty {
+  grid-template-columns: 1fr;
 }
 
 .candidate strong,
@@ -416,6 +454,11 @@ button:disabled {
 .pill.blocked {
   color: var(--error);
   background: #ffe0dc;
+}
+
+.pill.review {
+  color: var(--review);
+  background: #e9edff;
 }
 
 .issue.error {
@@ -533,6 +576,10 @@ th {
 
   .section-heading {
     display: block;
+  }
+
+  .candidate-quality {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .section-heading p {

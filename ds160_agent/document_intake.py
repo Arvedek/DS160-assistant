@@ -114,21 +114,24 @@ def build_codex_materials_handoff(payload: dict[str, Any], materials_bundle: dic
     non_empty = {field.id: current_data.get(field.id, "") for field in FIELDS if current_data.get(field.id)}
     field_catalog = [{"fieldId": field.id, "label": field.label, "section": field.section} for field in FIELDS]
     prompt = (
-        "You are acting as the extraction and evaluation agent for a local DS-160 assistant. "
-        "Review the full materials folder as one applicant case. Use only facts found in the listed materials and current draft. "
+        "TASK: Review a local DS-160 applicant materials folder and return structured candidates for the local app. "
+        "Step 1: Inspect the materials manifest and read every accessible file under materialsRoot. "
+        "Step 2: Extract only facts that appear in source materials or the current draft; never infer facts from silence. "
+        "Step 3: Cross-check documents for conflicts in names, dates, passport details, visa class, school/employer, U.S. contact, travel plans, and prior visa/travel history. "
+        "Step 4: Assign confidence based on source quality: 0.90+ for direct official-document matches, 0.75-0.89 for clear secondary evidence, below 0.75 for partial/ambiguous evidence. "
+        "Step 5: Mark requiresReview=true for conflicts, low confidence, security/background fields, refusal/overstay/arrest/drug/immigration history, or any value copied from a non-official source. "
         "If you are running in the same Codex workspace, read files from the provided materialsRoot path directly. "
-        "If a file cannot be read in your environment, ask the user to attach it instead of guessing. "
-        "Evaluate conflicts across documents, missing critical fields, and source quality. "
+        "If a file cannot be read in your environment, add a note asking the user to attach that specific file instead of guessing. "
         "Return JSON only in this exact shape:\n\n"
         "{\n"
         f'  "format": "{CODEX_RESULT_FORMAT}",\n'
         '  "candidates": [\n'
         '    {"fieldId": "passport_number", "value": "E12345678", "confidence": 0.9, "source": "materials/passport.jpg", "requiresReview": true}\n'
         "  ],\n"
-        '  "notes": ["conflict or missing source note"]\n'
+        '  "notes": ["conflict, missing source, unreadable file, or final review note"]\n'
         "}\n\n"
-        "Do not invent answers. For security/background questions, only extract explicit statements and keep requiresReview=true. "
-        "Prefer source labels that include the material relative path."
+        "Allowed field IDs are listed in fieldCatalog. Prefer source labels that include the material relative path. "
+        "Do not include candidates for fields that are not in fieldCatalog."
     )
     handoff = {
         "format": CODEX_MATERIALS_HANDOFF_FORMAT,
@@ -251,8 +254,47 @@ def annotate_candidates(candidates: list[dict[str, Any]], current_data: dict[str
         next_candidate["conflict"] = conflict
         if conflict:
             next_candidate["requiresReview"] = True
+        next_candidate["quality"] = _candidate_quality(next_candidate)
         annotated.append(next_candidate)
     return annotated
+
+
+def _candidate_quality(candidate: dict[str, Any]) -> dict[str, Any]:
+    confidence = float(candidate.get("confidence") or 0)
+    source = str(candidate.get("source") or "").strip()
+    reasons = []
+    if candidate.get("conflict"):
+        reasons.append("conflicts_with_current_draft")
+    if candidate.get("requiresReview"):
+        reasons.append("requires_human_review")
+    if confidence < 0.75:
+        reasons.append("low_confidence")
+    elif confidence < 0.9:
+        reasons.append("medium_confidence")
+    if not source or source in {"ai_document_analysis", "label_match", "passport_pattern", "email_pattern", "phone_pattern"}:
+        reasons.append("weak_or_generic_source")
+    if candidate.get("action") == "same_value":
+        reasons.append("already_matches_current_draft")
+
+    if candidate.get("conflict") or confidence < 0.75:
+        tier = "needs_review"
+        recommendation = "Review source before applying."
+    elif candidate.get("requiresReview") or confidence < 0.9 or "weak_or_generic_source" in reasons:
+        tier = "check_source"
+        recommendation = "Good candidate, but verify source."
+    elif candidate.get("action") == "same_value":
+        tier = "already_confirmed"
+        recommendation = "Matches the current draft."
+    else:
+        tier = "ready"
+        recommendation = "Likely safe to apply after normal applicant review."
+
+    return {
+        "tier": tier,
+        "score": round(max(0, min(100, confidence * 100 - (18 if candidate.get("conflict") else 0) - (8 if "weak_or_generic_source" in reasons else 0)))),
+        "reasons": reasons,
+        "recommendation": recommendation,
+    }
 
 
 FIELD_PATTERNS: dict[str, list[str]] = {

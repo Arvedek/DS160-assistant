@@ -92,6 +92,7 @@ def test_parse_codex_result_normalizes_candidates() -> None:
 
     assert result["mode"] == "codex_result"
     assert result["candidates"][0]["fieldLabel"] == "Passport Number"
+    assert result["candidates"][0]["quality"]["tier"] == "check_source"
     assert result["notes"] == ["review passport number"]
 
 
@@ -103,3 +104,21 @@ def test_candidate_annotation_marks_conflict() -> None:
     assert annotated[0]["action"] == "replace_conflict"
     assert annotated[0]["conflict"] is True
     assert annotated[0]["requiresReview"] is True
+    assert annotated[0]["quality"]["tier"] == "needs_review"
+
+
+def test_candidate_annotation_marks_ready_high_quality_source() -> None:
+    candidates = [
+        {
+            "fieldId": "passport_number",
+            "value": "E12345678",
+            "confidence": 0.96,
+            "source": "materials/passport.jpg",
+            "requiresReview": False,
+        }
+    ]
+
+    annotated = annotate_candidates(candidates, {})
+
+    assert annotated[0]["quality"]["tier"] == "ready"
+    assert annotated[0]["quality"]["score"] >= 90

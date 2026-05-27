@@ -52,3 +52,5 @@ def test_codex_materials_handoff_uses_folder_manifest(tmp_path: Path) -> None:
     assert handoff["mode"] == "codex_materials_handoff"
     assert "materialsRoot" in handoff["handoff"]
     assert "i20.txt" in handoff["prompt"]
+    assert "Step 3: Cross-check documents" in handoff["prompt"]
+    assert "Assign confidence based on source quality" in handoff["prompt"]
