@@ -24,6 +24,8 @@ DS-160 官方表格之前，先整理和检查申请草稿。
 - 浏览器端加密导出/导入，使用 Web Crypto AES-GCM 和 PBKDF2
 - 不记录完整个人信息的本地活动日志
 - 示例 B1/B2 dossier：`sample_data/china_b1b2_sample.json`
+- 文档输入面板支持图片、PDF、文本、JSON 上传；可粘贴 OCR/复制文本并抽取候选字段
+- 配置 `OPENAI_API_KEY` 后，图片/PDF 会通过 OpenAI Responses API 做视觉/文件分析；未配置时使用本地文本规则抽取
 - MVP 不依赖云端 API
 
 ### 快速开始
@@ -46,6 +48,14 @@ http://127.0.0.1:8780
 outputs/ds160/
 ```
 
+如果要启用图片/PDF AI 分析：
+
+```powershell
+$env:OPENAI_API_KEY="你的 key"
+$env:DS160_AI_MODEL="gpt-4o-mini"
+.\.venv\Scripts\python.exe -m ds160_agent.web --port 8780
+```
+
 ### 开发
 
 运行测试：
@@ -59,9 +69,11 @@ outputs/ds160/
 - `ds160_agent/core.py`：字段、校验、草稿生成、保存逻辑
 - `ds160_agent/dossier.py`：dossier 契约、字段映射、分区 readiness
 - `ds160_agent/audit.py`：隐私友好的本地审计日志
+- `ds160_agent/document_intake.py`：文档上传、AI 分析、本地文本候选字段抽取
 - `ds160_agent/web.py`：本地 HTTP 服务和 API
 - `ds160_agent/static/`：浏览器界面
 - `tests/test_ds160_agent.py`：核心校验测试
+- `tests/test_document_intake.py`：文档输入和文本抽取测试
 - `sample_data/china_b1b2_sample.json`：示例资料
 
 ### 安全说明
@@ -95,6 +107,10 @@ the applicant.
 - Browser-side encrypted export/import using Web Crypto AES-GCM and PBKDF2
 - Privacy-conscious local activity log that avoids full personal answers
 - Sample B1/B2 dossier: `sample_data/china_b1b2_sample.json`
+- Document intake panel for image, PDF, text, and JSON uploads; pasted OCR or
+  copied text can be converted into candidate fields
+- With `OPENAI_API_KEY`, images/PDFs are analyzed through the OpenAI Responses
+  API; without it, local text heuristics still work
 - No cloud API dependency in the MVP
 
 ### Quick Start
@@ -117,6 +133,14 @@ Saved reports are written under:
 outputs/ds160/
 ```
 
+To enable AI analysis for images/PDFs:
+
+```powershell
+$env:OPENAI_API_KEY="your key"
+$env:DS160_AI_MODEL="gpt-4o-mini"
+.\.venv\Scripts\python.exe -m ds160_agent.web --port 8780
+```
+
 ### Development
 
 Run tests:
@@ -130,9 +154,12 @@ Project layout:
 - `ds160_agent/core.py`: fields, validation, draft rendering, save logic
 - `ds160_agent/dossier.py`: dossier contract, field map, section readiness
 - `ds160_agent/audit.py`: privacy-conscious local audit log
+- `ds160_agent/document_intake.py`: document upload, AI analysis, local text
+  candidate extraction
 - `ds160_agent/web.py`: local HTTP server and API
 - `ds160_agent/static/`: browser UI
 - `tests/test_ds160_agent.py`: focused validation tests
+- `tests/test_document_intake.py`: document intake and text extraction tests
 - `sample_data/china_b1b2_sample.json`: sample data
 
 ### Safety Notes

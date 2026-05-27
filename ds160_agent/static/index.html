@@ -49,6 +49,19 @@
         <input type="file" id="import-file" accept="application/json,.json" hidden />
 
         <section>
+          <h2>文档输入</h2>
+          <div class="document-intake">
+            <input type="file" id="document-file" accept="image/*,application/pdf,.txt,.json" />
+            <textarea id="document-text" rows="5" placeholder="也可以粘贴 OCR 文本、邀请信、护照信息或 PDF 复制出来的文字"></textarea>
+            <label class="toggle"><input type="checkbox" id="use-ai" checked /> 使用 AI 分析图片/PDF（需要 OPENAI_API_KEY）</label>
+            <button type="button" id="document-analyze-button">分析文档</button>
+            <p id="ai-status" class="field-help">AI status: checking</p>
+          </div>
+          <div id="document-candidates" class="candidate-list"></div>
+          <div id="evidence-list" class="evidence-list"></div>
+        </section>
+
+        <section>
           <h2>分区状态</h2>
           <div id="section-status" class="section-status"></div>
         </section>

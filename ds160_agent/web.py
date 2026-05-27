@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from .audit import log_event, read_recent_events
 from .core import analyze_application, save_analysis, schema_payload
 from .dossier import dossier_schema
+from .document_intake import ai_status, analyze_document
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -56,6 +57,9 @@ class DS160Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/audit":
             self._send_json({"events": read_recent_events(OUTPUT_ROOT)})
             return
+        if parsed.path == "/api/ai-status":
+            self._send_json(ai_status())
+            return
         if parsed.path.startswith("/outputs/ds160/"):
             self._send_output_file(parsed.path.removeprefix("/outputs/ds160/"))
             return
@@ -68,6 +72,9 @@ class DS160Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/save":
             self._handle_analyze(save=True)
+            return
+        if parsed.path == "/api/document/analyze":
+            self._handle_document_analyze()
             return
         self._send_error(HTTPStatus.NOT_FOUND, "Not found")
 
@@ -95,6 +102,26 @@ class DS160Handler(BaseHTTPRequestHandler):
                     "markdownUrl": "/" + _workspace_url(paths["markdownPath"]),
                 }
             self._send_json(analysis)
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as exc:  # noqa: BLE001 - local UI should surface unexpected failures
+            self._send_json({"error": f"Unexpected server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _handle_document_analyze(self) -> None:
+        try:
+            payload = self._read_json_body()
+            result = analyze_document(payload)
+            log_event(
+                OUTPUT_ROOT,
+                "document_analyze",
+                {
+                    "caseId": payload.get("caseId") or "unknown",
+                    "mode": result.get("mode"),
+                    "candidateCount": len(result.get("candidates", [])),
+                    "mimeType": result.get("evidence", {}).get("mimeType"),
+                },
+            )
+            self._send_json(result)
         except (ValueError, json.JSONDecodeError) as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:  # noqa: BLE001 - local UI should surface unexpected failures

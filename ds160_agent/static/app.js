@@ -17,9 +17,18 @@ const savedLinks = document.querySelector("#saved-links");
 const sectionStatusBox = document.querySelector("#section-status");
 const auditLog = document.querySelector("#audit-log");
 const caseId = document.querySelector("#case-id");
+const documentFile = document.querySelector("#document-file");
+const documentText = document.querySelector("#document-text");
+const documentAnalyzeButton = document.querySelector("#document-analyze-button");
+const documentCandidates = document.querySelector("#document-candidates");
+const evidenceList = document.querySelector("#evidence-list");
+const useAi = document.querySelector("#use-ai");
+const aiStatus = document.querySelector("#ai-status");
 
 let schema = { sections: [], fields: [] };
 let latestAnalysis = null;
+let latestDocumentResult = null;
+const evidenceItems = [];
 const storageKey = "ds160LocalAssistant.data";
 
 init();
@@ -30,6 +39,7 @@ async function init() {
   schema = await response.json();
   renderForm();
   loadLocalDraft();
+  await loadAiStatus();
   await analyze(false);
   setStatus("Ready", "ok");
 }
@@ -89,6 +99,7 @@ encryptedExportButton.addEventListener("click", encryptedExport);
 importButton.addEventListener("click", () => importFile.click());
 importFile.addEventListener("change", importJson);
 copyButton.addEventListener("click", copyMarkdown);
+documentAnalyzeButton.addEventListener("click", analyzeDocument);
 
 async function analyze(showDone) {
   setButtons(true);
@@ -308,6 +319,125 @@ async function importJson() {
   }
 }
 
+async function analyzeDocument() {
+  setButtons(true);
+  documentAnalyzeButton.disabled = true;
+  documentCandidates.innerHTML = '<div class="candidate"><strong>Analyzing document</strong><span>Please wait.</span></div>';
+  try {
+    const filePayload = await readDocumentFile();
+    const payload = {
+      caseId: latestAnalysis?.dossier?.caseId || "draft",
+      currentData: readFormData(),
+      useAi: useAi.checked,
+      document: {
+        ...(filePayload || {}),
+        text: documentText.value.trim(),
+      },
+    };
+    const response = await fetch("/api/document/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Document analysis failed");
+    latestDocumentResult = data;
+    if (data.evidence) evidenceItems.unshift(data.evidence);
+    renderDocumentCandidates(data);
+    renderEvidence();
+    await loadAuditLog();
+    setStatus(data.mode === "ai" ? "AI analyzed" : "Text analyzed", "ok");
+  } catch (error) {
+    setStatus("Doc error", "error");
+    documentCandidates.innerHTML = `<div class="candidate"><strong>Error</strong><span>${escapeHtml(error.message)}</span></div>`;
+  } finally {
+    setButtons(false);
+    documentAnalyzeButton.disabled = false;
+  }
+}
+
+async function readDocumentFile() {
+  const file = documentFile.files?.[0];
+  if (!file) return null;
+  if (file.size > 8 * 1024 * 1024) {
+    throw new Error("File is too large for this MVP. Limit is 8 MB.");
+  }
+  const dataUrl = await readAsDataUrl(file);
+  const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : "";
+  let text = "";
+  if (file.type.startsWith("text/") || file.name.toLowerCase().endsWith(".txt")) {
+    text = await file.text();
+  }
+  if (file.type === "application/json" || file.name.toLowerCase().endsWith(".json")) {
+    text = await file.text();
+  }
+  return {
+    filename: file.name,
+    mimeType: file.type || guessMimeType(file.name),
+    dataBase64: base64Data,
+    text,
+  };
+}
+
+function renderDocumentCandidates(data) {
+  const candidates = data.candidates || [];
+  const notes = data.notes || [];
+  if (!candidates.length) {
+    documentCandidates.innerHTML = `<div class="candidate">
+      <strong>No candidates found</strong>
+      <span>${escapeHtml(notes.join(" ") || "Upload another document, paste OCR text, or enable AI analysis.")}</span>
+    </div>`;
+    return;
+  }
+  documentCandidates.innerHTML = [
+    ...notes.map((note) => `<div class="candidate"><strong>Note</strong><span>${escapeHtml(note)}</span></div>`),
+    ...candidates.map((candidate, index) => `<label class="candidate">
+      <input type="checkbox" data-candidate="${index}" checked />
+      <span>
+        <strong>${escapeHtml(candidate.fieldLabel || candidate.fieldId)} -> ${escapeHtml(candidate.value)}</strong>
+        <span>${escapeHtml(candidate.source || data.mode)} | confidence ${Math.round(Number(candidate.confidence || 0) * 100)}%${candidate.requiresReview ? " | review" : ""}</span>
+      </span>
+    </label>`),
+    '<div class="candidate-actions"><button type="button" id="apply-candidates-button">应用选中字段</button></div>',
+  ].join("");
+  document.querySelector("#apply-candidates-button").addEventListener("click", applyCandidates);
+}
+
+async function applyCandidates() {
+  const candidates = latestDocumentResult?.candidates || [];
+  document.querySelectorAll("[data-candidate]").forEach((box) => {
+    if (!box.checked) return;
+    const candidate = candidates[Number(box.dataset.candidate)];
+    const element = form.elements[candidate.fieldId];
+    if (element) element.value = candidate.value;
+  });
+  saveLocalDraft();
+  await analyze(true);
+  setStatus("Applied", "ok");
+}
+
+function renderEvidence() {
+  evidenceList.innerHTML = evidenceItems
+    .slice(0, 6)
+    .map((item) => `<div class="evidence-item">
+      <strong>${escapeHtml(item.filename)}</strong>
+      <span>${escapeHtml(item.mimeType)} | file: ${item.hasFile ? "yes" : "no"} | text: ${item.hasText ? "yes" : "no"}</span>
+    </div>`)
+    .join("");
+}
+
+async function loadAiStatus() {
+  try {
+    const response = await fetch("/api/ai-status");
+    const data = await response.json();
+    aiStatus.textContent = data.enabled
+      ? `AI enabled: ${data.provider}, model ${data.model}`
+      : "AI disabled: set OPENAI_API_KEY to analyze images/PDFs; text extraction still works locally.";
+  } catch {
+    aiStatus.textContent = "AI status unavailable.";
+  }
+}
+
 async function copyMarkdown() {
   if (!latestAnalysis?.markdown) await analyze(false);
   const text = latestAnalysis?.markdown || "";
@@ -322,6 +452,7 @@ function setButtons(disabled) {
   encryptedExportButton.disabled = disabled;
   importButton.disabled = disabled;
   copyButton.disabled = disabled;
+  documentAnalyzeButton.disabled = disabled;
   if (disabled) setStatus("Working", "running");
 }
 
@@ -394,6 +525,24 @@ function base64(bytes) {
 
 function fromBase64(value) {
   return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(reader.error || new Error("Could not read file")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function guessMimeType(filename) {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".json")) return "application/json";
+  return "text/plain";
 }
 
 function setStatus(label, kind) {
